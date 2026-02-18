@@ -1,0 +1,121 @@
+# =============================================================================
+# .gitignore – Household Energy Dashboard (MSE 433)
+# =============================================================================
+
+# --- Project-level ignores (pre-existing) ------------------------------------
+.claude
+Planning
+
+
+# --- Python bytecode & caches ------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+
+# --- Virtual environments ----------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+
+
+# --- Environment & secrets ---------------------------------------------------
+.env
+.env.*
+*.env
+
+
+# --- IDE & editor files ------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+
+# --- Jupyter Notebooks -------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+
+# --- Data files (raw and processed) ------------------------------------------
+# Keep directory structure (.gitkeep) but ignore actual data files.
+backend/data/raw/*.txt
+backend/data/raw/*.csv
+backend/data/raw/*.zip
+backend/data/raw/*.gz
+backend/data/raw/*.parquet
+
+backend/data/processed/*.parquet
+backend/data/processed/*.csv
+backend/data/processed/*.json
+# Allow schema doc to be committed
+!backend/data/processed/SCHEMA.md
+
+backend/data/features/*.parquet
+backend/data/features/*.csv
+
+
+# --- Trained model artefacts -------------------------------------------------
+backend/models/*.joblib
+backend/models/*.pkl
+backend/models/*.json
+# Keep the directory
+!backend/models/.gitkeep
+
+
+# --- Results & figures -------------------------------------------------------
+backend/results/*.csv
+backend/results/*.parquet
+backend/results/figures/*.png
+backend/results/figures/*.pdf
+backend/results/figures/*.svg
+# Keep directory structure
+!backend/results/.gitkeep
+!backend/results/figures/.gitkeep
+
+
+# --- Build & distribution ----------------------------------------------------
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
+
+
+# --- Coverage & test reports -------------------------------------------------
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.coveragerc
+
+
+# --- macOS -------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+
+# --- Windows -----------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+
+# --- Temporary files ---------------------------------------------------------
+*.tmp
+*.bak
+*.orig
+
+TODO.md
+backend/src/skills

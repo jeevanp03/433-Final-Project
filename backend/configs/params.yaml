@@ -1,0 +1,309 @@
+# =============================================================================
+# configs/params.yaml
+# ---------------------
+# Central configuration for the Household Energy Dashboard pipeline.
+# ALL hardcoded values in src/ must be read from here via
+# src.skills.config_loader.load_config() / get_param().
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# File Paths
+# All paths are relative to backend/ (resolved by src.skills.config_loader).
+# Use src.skills.file_registry for canonical resolved paths.
+# -----------------------------------------------------------------------------
+paths:
+  raw_data:       data/raw/
+  processed_data: data/processed/
+  features:       data/features/
+  models:         models/
+  results:        results/
+  figures:        results/figures/
+  notebooks:      notebooks/
+
+  # Individual artefact files
+  raw_csv:              data/raw/household_power_consumption.txt
+  hourly_parquet:       data/processed/hourly_clean.parquet
+  quality_report:       data/processed/quality_report.json
+  features_parquet:     data/features/features.parquet
+  conformal_widths:     models/conformal_widths.json
+  shap_values_parquet:  results/shap_values.parquet
+  validation_metrics:   results/validation_metrics.csv
+  test_metrics:         results/test_metrics.csv
+
+
+# -----------------------------------------------------------------------------
+# Raw Data
+# UCI Individual Household Electric Power Consumption (dataset id=235)
+# Source: https://archive.ics.uci.edu/dataset/235
+# 2,075,259 rows, minute-level, semicolon-delimited.
+# -----------------------------------------------------------------------------
+data:
+  # Column used as the forecast target (hourly kWh equivalent)
+  target_column:        Global_active_power
+
+  # Columns to AVERAGE when resampling minute -> hourly
+  mean_columns:
+    - Global_active_power
+    - Global_reactive_power
+    - Voltage
+    - Global_intensity
+
+  # Columns to SUM when resampling minute -> hourly
+  sum_columns:
+    - Sub_metering_1
+    - Sub_metering_2
+    - Sub_metering_3
+
+  # Derived column added after resampling
+  # Formula: (Global_active_power * 1000/60) * 60 - Sub_1 - Sub_2 - Sub_3
+  derived_column:       Other_consumption
+
+  # Missing-value sentinel in the raw CSV
+  na_sentinel:          "?"
+
+  # Gap-filling strategy
+  # Short gaps (<=4 consecutive NaN hours): forward-fill then backward-fill
+  # Long gaps (>4 hours): flag with gap_flag=True, exclude from training
+  short_gap_hours:      4   # [1, inf) – gaps <= this value are filled
+  gap_flag_column:      gap_flag
+
+
+# -----------------------------------------------------------------------------
+# Temporal Splits
+# Strictly chronological; no random shuffling ever.
+# These cover the full dataset (Dec 2006 – Nov 2010).
+# -----------------------------------------------------------------------------
+splits:
+  train_start:  "2006-12-16"   # First full day of data
+  train_end:    "2008-12-31"   # ~2 years of training
+  val_start:    "2009-01-01"   # ~18 months of validation
+  val_end:      "2010-06-30"
+  test_start:   "2010-07-01"   # ~5 months held-out test
+  test_end:     "2010-11-26"   # Last available date
+
+
+# -----------------------------------------------------------------------------
+# Feature Engineering
+# All rolling/lag features use strictly past data (shift(1) before any window).
+# -----------------------------------------------------------------------------
+features:
+  # Lag features (indices >= 1 to prevent leakage)
+  lags:
+    - 1     # lag_1h:   y(t-1)
+    - 2     # lag_2h:   y(t-2)
+    - 24    # lag_24h:  same hour yesterday
+    - 168   # lag_168h: same hour last week
+
+  # Difference features derived from lags
+  diffs:
+    - [1, 2]    # diff_1h:  lag_1 - lag_2
+    - [1, 25]   # diff_24h: lag_1 - lag_25
+
+  # Rolling-window statistics (window in hours; all shifted by 1 before rolling)
+  rolling_windows:
+    - 24    # roll_mean/std/max_24h
+    - 168   # roll_mean/std_168h
+
+  # Exponentially weighted moving average half-life (hours)
+  ewma_halflife_hours: 12   # ewma_12h
+
+  # Number of rows to drop at the start due to lag/rolling warmup
+  # = max(lags) = 168
+  warmup_rows: 168
+
+  # Sub-meter share features: divide by Global_active_power.
+  # When Global_active_power < threshold, set share = 0 (avoids div-by-zero).
+  sub_meter_share_min_kw: 0.01
+
+
+# -----------------------------------------------------------------------------
+# Model – Baseline (Seasonal Naive)
+# y_hat(t) = y(t - 168)  [same hour last week]
+# No training required.
+# -----------------------------------------------------------------------------
+model:
+  baseline:
+    lag_hours: 168   # Must match features.lags entry
+
+
+  # ---------------------------------------------------------------------------
+  # Model – Ridge Regression
+  # Direct multi-step: 24 independent Ridge models, one per horizon h=1..24.
+  # Alpha tuned via TimeSeriesSplit cross-validation.
+  # ---------------------------------------------------------------------------
+  ridge:
+    horizons: 24          # Number of independent models (h = 1 .. 24)
+    alpha_candidates:     # Grid searched via TimeSeriesSplit CV
+      - 0.01
+      - 0.1
+      - 1.0
+      - 10.0
+      - 100.0
+      - 1000.0
+    cv_splits: 5          # TimeSeriesSplit n_splits
+    random_state: 42
+
+
+  # ---------------------------------------------------------------------------
+  # Model – XGBoost (Primary)
+  # Direct multi-step: 24 independent XGBRegressor models.
+  # Defaults from design document.  Tune via RandomizedSearchCV if desired.
+  # ---------------------------------------------------------------------------
+  xgboost:
+    horizons:           24      # Number of independent models (h = 1 .. 24)
+    n_estimators:       300     # [100, 2000] – more trees with early stopping
+    max_depth:          5       # [3, 10]     – tree depth
+    learning_rate:      0.05    # [0.01, 0.3] – shrinkage
+    subsample:          0.8     # (0, 1]      – row subsampling per tree
+    colsample_bytree:   0.8     # (0, 1]      – column subsampling per tree
+    min_child_weight:   5       # [1, 20]     – minimum leaf weight
+    reg_alpha:          0.1     # [0, 10]     – L1 regularisation
+    reg_lambda:         1.0     # [0, 10]     – L2 regularisation
+    early_stopping_rounds: 50   # Stop if val MAE doesn't improve for 50 rounds
+    eval_metric:        mae     # Metric used for early stopping
+    tree_method:        hist    # Fast histogram method (GPU: 'gpu_hist')
+    random_state:       42
+
+    # Optional randomised hyperparameter search (set enabled: true to activate)
+    random_search:
+      enabled:          false
+      n_iter:           30
+      cv_splits:        5
+
+
+# -----------------------------------------------------------------------------
+# Evaluation
+# Metrics computed at every model stage (validation and test).
+# -----------------------------------------------------------------------------
+evaluation:
+  # Metrics to compute (all implemented in src.skills.metrics)
+  metrics:
+    - rmse
+    - mae
+    - mape
+    - r2
+    - peak_mae    # MAE restricted to the top decile of demand
+
+  # Acceptance thresholds (used in test_models.py)
+  xgb_vs_baseline_min_improvement: 0.15   # XGBoost MAE must beat baseline by >= 15 %
+  peak_mae_multiplier_max:          1.5    # peak_MAE <= overall_MAE * 1.5
+
+  # Error-slicing dimensions
+  slice_dimensions:
+    - hour_of_day
+    - day_of_week
+    - month
+    - forecast_horizon   # h = 1 .. 24
+    - demand_tercile     # low / medium / high
+
+
+# -----------------------------------------------------------------------------
+# Conformal Prediction Intervals
+# Coverage target: 90 % (95th percentile of absolute validation residuals).
+# -----------------------------------------------------------------------------
+conformal:
+  target_coverage:    0.90   # Desired PI coverage
+  quantile:           0.95   # Residual quantile used as half-width
+  min_coverage_test:  0.85   # Minimum acceptable coverage on test set
+
+
+# -----------------------------------------------------------------------------
+# Prescriptive Engine
+# MILP load-shift optimiser (PuLP / CBC backend).
+# Objective: minimise alpha * peak + (1 - alpha) * cost
+# -----------------------------------------------------------------------------
+prescriptive:
+  # Objective weight on peak reduction (vs cost reduction)
+  # Range [0, 1]. 0 = cost only, 1 = peak only.
+  peak_weight:          0.5    # alpha in objective
+
+  # Default flexible loads (from design document Table 6.1)
+  # duration_h    : how many contiguous hours the appliance must run
+  # power_kw      : average draw during operation
+  # earliest_start: earliest allowed start hour (0-23, inclusive)
+  # latest_finish : latest allowed finish hour (1-24, inclusive; exclusive end)
+  # preemptable   : can the task be split across non-contiguous hours?
+  # max_deferral_h: maximum hours by which the task can be shifted
+  default_loads:
+    dishwasher:
+      duration_h:       2
+      power_kw:         1.2
+      earliest_start:   18    # 6 PM
+      latest_finish:    23    # 11 PM
+      preemptable:      false
+      max_deferral_h:   6
+
+    washing_machine:
+      duration_h:       2     # rounded up from 1.5 h
+      power_kw:         0.5
+      earliest_start:   6     # 6 AM
+      latest_finish:    22    # 10 PM
+      preemptable:      false
+      max_deferral_h:   8
+
+    dryer:
+      duration_h:       2
+      power_kw:         2.0
+      earliest_start:   8     # 8 AM
+      latest_finish:    22    # 10 PM
+      preemptable:      false
+      max_deferral_h:   6
+
+    water_heater:
+      duration_h:       3
+      power_kw:         1.5
+      earliest_start:   0     # any time
+      latest_finish:    24
+      preemptable:      true
+      max_deferral_h:   12
+
+  # Constraint relaxation: if infeasible, extend max_deferral by this step
+  infeasibility_deferral_step_h: 1
+  max_relaxation_attempts:       6
+
+
+# -----------------------------------------------------------------------------
+# Time-of-Use (TOU) Pricing
+# Synthetic 3-tier French-market-inspired schedule (EUR / kWh).
+# Hour ranges are inclusive on both ends.
+# -----------------------------------------------------------------------------
+pricing:
+  currency:   EUR
+  tiers:
+    off_peak:
+      hours:        [[0, 6], [22, 23]]   # 10 PM – 7 AM
+      rate_per_kwh: 0.08
+    mid_peak:
+      hours:        [[7, 9], [20, 21]]   # 7–10 AM, 8–10 PM
+      rate_per_kwh: 0.14
+    on_peak:
+      hours:        [[10, 19]]           # 10 AM – 8 PM
+      rate_per_kwh: 0.22
+
+
+# -----------------------------------------------------------------------------
+# Dashboard
+# Streamlit configuration.  Colour palette defined in src/skills/plotly_theme.py.
+# -----------------------------------------------------------------------------
+dashboard:
+  port:                 8501
+  title:                "Household Energy Dashboard"
+  page_icon:            "lightning"   # Streamlit emoji shortcode
+  layout:               wide
+
+  # Forecast horizon options presented to the user
+  horizon_options:
+    - 24    # 24-hour (default)
+    - 168   # 7-day
+
+  # Peak-alert threshold: flag if any hour in next 6h exceeds this percentile
+  # of the training distribution.
+  peak_alert_quantile:  0.90
+  peak_alert_window_h:  6
+
+  # Sparkline trailing window for Today's Total KPI card
+  sparkline_hours:      24
+
+  # Maximum dashboard load time target (seconds) – acceptance criterion
+  max_load_seconds:     3
