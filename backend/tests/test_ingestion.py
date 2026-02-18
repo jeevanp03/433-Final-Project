@@ -131,9 +131,9 @@ class TestCleanResample:
             f"Only {non_negative_pct:.1%} of Other_consumption rows are non-negative."
         )
 
-    def test_gap_flag_column_exists(self, hourly_df: pd.DataFrame) -> None:
-        """Cleaned DataFrame must have a gap_flag boolean column."""
-        from src.skills.config_loader import get_param
-        gap_col = get_param("data.gap_flag_column")
-        assert gap_col in hourly_df.columns, f"Missing column: '{gap_col}'"
-        assert hourly_df[gap_col].dtype == bool or hourly_df[gap_col].dtype == np.bool_
+    def test_no_long_gap_rows_remain(self, hourly_df: pd.DataFrame) -> None:
+        """Cleaned DataFrame must have no NaN rows (long gaps are dropped)."""
+        nan_total = hourly_df.isna().sum().sum()
+        assert nan_total == 0, (
+            f"Found {nan_total} NaN values — long-gap rows should have been dropped."
+        )

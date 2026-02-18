@@ -52,6 +52,7 @@ backend/data/raw/*.csv
 backend/data/raw/*.zip
 backend/data/raw/*.gz
 backend/data/raw/*.parquet
+backend/logs
 
 backend/data/processed/*.parquet
 backend/data/processed/*.csv

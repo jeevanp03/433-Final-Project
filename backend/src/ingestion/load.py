@@ -64,7 +64,6 @@ def load_raw(path: Optional[str | Path] = None) -> pd.DataFrame:
         na_values=get_param("data.na_sentinel"),
         parse_dates={"datetime": ["Date", "Time"]},
         dayfirst=True,
-        infer_datetime_format=True,
         low_memory=False,
     )
 

@@ -25,10 +25,10 @@ from src.skills.plotly_theme import COLOURS
 
 
 _SEASON_COLOURS = {
-    "Winter": COLOURS["blue"],
-    "Spring": COLOURS["green"],
-    "Summer": COLOURS["orange"],
-    "Autumn": COLOURS["navy"],
+    "Winter": COLOURS["accent"],
+    "Spring": COLOURS["success"],
+    "Summer": COLOURS["alert"],
+    "Autumn": COLOURS["primary"],
 }
 
 

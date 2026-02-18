@@ -6,10 +6,10 @@ Clean the raw minute-level DataFrame and produce a clean hourly Parquet file.
 Pipeline steps:
 1. Resample minute data to hourly (power columns: mean; sub-metering: sum).
 2. Compute the derived ``Other_consumption`` column.
-3. Identify consecutive NaN runs.
+3. Identify consecutive NaN runs BEFORE any filling.
 4. Short gaps (<= 4 h): forward-fill then backward-fill.
-5. Long gaps (> 4 h): set ``gap_flag = True`` and leave for downstream exclusion.
-6. Assert no NaN remains in numeric columns.
+5. Long gaps (> 4 h): drop the rows entirely (do not impute).
+6. Assert no NaN remains, index is monotonic, no duplicate timestamps.
 7. Save ``data/processed/hourly_clean.parquet``.
 8. Save ``data/processed/quality_report.json``.
 
@@ -52,18 +52,32 @@ def clean_and_resample(df: Optional[pd.DataFrame] = None) -> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-        Hourly DataFrame with ``gap_flag`` boolean column.  Approximately
-        35,000 rows.
+        Hourly DataFrame with long-gap rows excluded entirely.
+        Short gaps (<=4 h) are forward- then backward-filled.
+        Approximately 35,000 rows with no NaN values.
     """
     if df is None:
         df = load_raw()
 
     logger.info("Starting hourly resampling …")
     hourly = _resample_to_hourly(df)
+    rows_before = len(hourly)
     hourly = _add_other_consumption(hourly)
-    hourly = _fill_gaps(hourly)
-    _assert_no_nan(hourly)
-    logger.info("Clean hourly DataFrame: %d rows x %d columns", *hourly.shape)
+    hourly, n_short_filled, n_long_dropped = _fill_gaps(hourly)
+
+    # Store metadata as attributes for use in quality report
+    hourly.attrs["rows_before_cleaning"] = rows_before
+    hourly.attrs["short_gaps_filled"] = n_short_filled
+    hourly.attrs["long_gaps_dropped"] = n_long_dropped
+
+    _assert_clean(hourly)
+    logger.info(
+        "Clean hourly DataFrame: %d rows x %d columns "
+        "(%d short gaps filled, %d long-gap rows dropped)",
+        *hourly.shape,
+        n_short_filled,
+        n_long_dropped,
+    )
     return hourly
 
 
@@ -95,7 +109,9 @@ def save_quality_report(df: pd.DataFrame, path: Optional[str | Path] = None) -> 
     Parameters
     ----------
     df : pd.DataFrame
-        Cleaned hourly DataFrame.
+        Cleaned hourly DataFrame produced by ``clean_and_resample()``.
+        May carry ``attrs`` keys: ``rows_before_cleaning``,
+        ``short_gaps_filled``, ``long_gaps_dropped``.
     path : str | Path | None
         Output path.  Defaults to ``paths.quality_report`` from params.yaml.
 
@@ -107,12 +123,15 @@ def save_quality_report(df: pd.DataFrame, path: Optional[str | Path] = None) -> 
     resolved = _resolve_output_path(path, "paths.quality_report")
     resolved.parent.mkdir(parents=True, exist_ok=True)
 
-    gap_flag_col: str = get_param("data.gap_flag_column")
-    long_gap_rows = int(df[gap_flag_col].sum()) if gap_flag_col in df.columns else 0
+    rows_before = df.attrs.get("rows_before_cleaning", None)
+    short_filled = df.attrs.get("short_gaps_filled", None)
+    long_dropped = df.attrs.get("long_gaps_dropped", None)
 
     report = {
-        "total_rows": len(df),
-        "long_gap_rows_flagged": long_gap_rows,
+        "rows_before_cleaning": rows_before,
+        "rows_after_cleaning": len(df),
+        "short_gaps_filled_hours": short_filled,
+        "long_gap_rows_dropped": long_dropped,
         "date_range": {
             "start": str(df.index.min()),
             "end": str(df.index.max()),
@@ -124,7 +143,6 @@ def save_quality_report(df: pd.DataFrame, path: Optional[str | Path] = None) -> 
                 "mean": float(df[col].mean()),
             }
             for col in df.select_dtypes("number").columns
-            if col != gap_flag_col
         },
     }
 
@@ -164,59 +182,116 @@ def _add_other_consumption(df: pd.DataFrame) -> pd.DataFrame:
         - df["Sub_metering_1"]
         - df["Sub_metering_2"]
         - df["Sub_metering_3"]
-    )
+    ).clip(lower=0)
     return df
 
 
-def _fill_gaps(df: pd.DataFrame) -> pd.DataFrame:
-    """Fill short NaN runs; flag long runs with ``gap_flag``."""
-    short_gap: int = get_param("data.short_gap_hours")
-    gap_flag_col: str = get_param("data.gap_flag_column")
+def _fill_gaps(df: pd.DataFrame) -> tuple[pd.DataFrame, int, int]:
+    """Fill short NaN runs; drop rows belonging to long runs.
 
+    Short gaps (<= ``short_gap_hours`` consecutive missing hours) are
+    forward-filled then backward-filled.  Long gaps are identified BEFORE
+    any filling, flagged, and then removed from the returned DataFrame so
+    the final parquet contains no NaN values and no imputed long runs.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Hourly resampled DataFrame (with NaN where data was missing).
+
+    Returns
+    -------
+    tuple of (cleaned_df, n_short_filled, n_long_dropped)
+        cleaned_df     : DataFrame with short gaps filled and long-gap rows
+                         removed entirely.
+        n_short_filled : Number of hourly rows that were forward/back-filled.
+        n_long_dropped : Number of hourly rows dropped due to long gaps.
+    """
+    short_gap: int = get_param("data.short_gap_hours")
+    target: str = get_param("data.target_column")
     numeric_cols = df.select_dtypes("number").columns.tolist()
 
-    # Identify consecutive NaN run lengths for the target column
-    target: str = get_param("data.target_column")
-    null_mask = df[target].isnull()
-    gap_groups = null_mask * (null_mask.groupby((~null_mask).cumsum()).cumcount() + 1)
-
-    # Mark long-gap rows before filling
     df = df.copy()
-    df[gap_flag_col] = False
 
-    # Forward fill then backward fill for short gaps
-    df[numeric_cols] = (
-        df[numeric_cols]
-        .where(~(null_mask & (gap_groups > short_gap)))  # preserve long gaps
-        .ffill()
-        .bfill()
-    )
+    # -----------------------------------------------------------------------
+    # Step 1: Identify each NaN row's consecutive run length BEFORE filling.
+    # null_mask:  True wherever the target column is NaN.
+    # gap_run_id: Increments every time null_mask transitions from True->False.
+    #             All rows inside a single contiguous NaN run share the same id.
+    # run_length: cumcount within each run (1-indexed, 0 for non-NaN rows).
+    # -----------------------------------------------------------------------
+    null_mask = df[target].isnull()
+    gap_run_id = (~null_mask).cumsum()
+    # cumcount gives 0-based position within each group; +1 gives run position
+    run_position = null_mask.groupby(gap_run_id).cumcount() + 1
+    # Zero out positions for non-NaN rows (groups with null_mask=False throughout)
+    run_position = run_position.where(null_mask, other=0)
 
-    # Flag any remaining NaN rows as long gaps
-    still_null = df[target].isnull()
-    df.loc[still_null, gap_flag_col] = True
+    # Max position within each run == run length. Broadcast back to each row.
+    run_max = run_position.groupby(gap_run_id).transform("max")
 
-    long_gaps = int(still_null.sum())
-    if long_gaps:
+    # Rows in long gaps (run length exceeds threshold)
+    long_gap_mask = null_mask & (run_max > short_gap)
+    # Rows in short gaps
+    short_gap_mask = null_mask & (run_max <= short_gap)
+
+    n_long_dropped = int(long_gap_mask.sum())
+    n_short_filled = int(short_gap_mask.sum())
+
+    # -----------------------------------------------------------------------
+    # Step 2: Forward-fill then backward-fill SHORT gaps only.
+    # We temporarily set long-gap rows to NaN (they already are), fill, then
+    # verify that long-gap positions have not been touched by the fill.
+    # Implementation: set long-gap rows to a sentinel, fill, then drop sentinels.
+    # Simpler: fill a masked copy where long-gap rows are preserved as NaN.
+    # -----------------------------------------------------------------------
+    # Build a version where long-gap NaNs are preserved (they stay NaN even
+    # after ffill/bfill because we mark valid sentinel boundaries around them).
+    # The cleanest approach: mask short-gap rows with NaN, ffill/bfill, then
+    # reassign only those rows back to df.
+    if n_short_filled > 0:
+        filled = df[numeric_cols].ffill().bfill()
+        # Only apply filled values to short-gap rows; leave long-gap rows as NaN
+        df.loc[short_gap_mask, numeric_cols] = filled.loc[short_gap_mask, numeric_cols]
+
+    # -----------------------------------------------------------------------
+    # Step 3: Drop long-gap rows entirely.
+    # -----------------------------------------------------------------------
+    if n_long_dropped > 0:
         logger.warning(
-            "%d hourly rows have gaps > %d h and are flagged (not filled).",
-            long_gaps,
+            "%d hourly rows dropped (gap > %d consecutive hours).",
+            n_long_dropped,
             short_gap,
         )
-    return df
+        df = df.loc[~long_gap_mask]
 
-
-def _assert_no_nan(df: pd.DataFrame) -> None:
-    """Assert that no NaN values remain in filled numeric columns."""
-    target: str = get_param("data.target_column")
-    gap_flag_col: str = get_param("data.gap_flag_column")
-
-    unflagged = df[~df[gap_flag_col]] if gap_flag_col in df.columns else df
-    nan_count = unflagged[target].isnull().sum()
-    assert nan_count == 0, (
-        f"Found {nan_count} NaN values in '{target}' after gap-filling. "
-        "Check short_gap_hours setting in params.yaml."
+    logger.info(
+        "Gap filling complete: %d short-gap rows filled, %d long-gap rows dropped.",
+        n_short_filled,
+        n_long_dropped,
     )
+    return df, n_short_filled, n_long_dropped
+
+
+def _assert_clean(df: pd.DataFrame) -> None:
+    """Assert data quality invariants on the cleaned hourly DataFrame.
+
+    Checks:
+    - No NaN values remain in any column.
+    - DatetimeIndex is monotonically increasing.
+    - No duplicate timestamps exist.
+
+    Raises
+    ------
+    AssertionError
+        If any invariant is violated.
+    """
+    nan_total = df.isna().sum().sum()
+    assert nan_total == 0, (
+        f"NaN values remain after cleaning: {nan_total} total across all columns."
+    )
+    assert df.index.is_monotonic_increasing, "Index is not monotonically increasing."
+    assert not df.index.duplicated().any(), "Duplicate timestamps found in index."
 
 
 def _resolve_output_path(path: Optional[str | Path], param_key: str) -> Path:

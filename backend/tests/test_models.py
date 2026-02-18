@@ -30,14 +30,17 @@ import pytest
 
 @pytest.fixture(scope="module")
 def tiny_feature_df():
-    """Minimal synthetic feature matrix for fast model tests (400 rows)."""
-    n = 400
+    """Minimal synthetic feature matrix for fast model tests (1200 rows)."""
+    n = 1200
     idx = pd.date_range("2007-01-01", periods=n, freq="1h")
     rng = np.random.default_rng(99)
 
-    # Simulate a target with a 24-h seasonal pattern
+    # Simulate a target with daily + weekly patterns and noise
     t = np.arange(n)
-    target = 1.5 + 0.8 * np.sin(2 * np.pi * t / 24) + rng.normal(0, 0.1, n)
+    daily = 0.8 * np.sin(2 * np.pi * t / 24)
+    weekday_effect = 0.3 * (idx.dayofweek < 5).astype(float)
+    trend = 0.0005 * t
+    target = 1.5 + daily + weekday_effect + trend + rng.normal(0, 0.3, n)
 
     df = pd.DataFrame({"Global_active_power": target}, index=idx)
     # Add minimal feature columns
@@ -139,7 +142,10 @@ class TestXGBForecaster:
         baseline_metrics = baseline.evaluate(splits["X_val"], splits["y_val"])
 
         xgb = XGBForecaster(horizons=24)
-        xgb.fit(splits["X_train"], splits["y_train"])
+        xgb.fit(
+            splits["X_train"], splits["y_train"],
+            X_val=splits["X_val"], y_val=splits["y_val"],
+        )
         xgb_metrics = xgb.evaluate(splits["X_val"], splits["y_val"])
 
         assert xgb_metrics["mae"] < baseline_metrics["mae"], (

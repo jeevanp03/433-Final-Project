@@ -98,6 +98,7 @@ class XGBForecaster(Forecaster):
         early_stop: int = self._params.pop("early_stopping_rounds", 50)
 
         feature_cols = [c for c in X_train.columns if c != target]
+        has_val = X_val is not None and y_val is not None
 
         for h in range(1, self.horizons + 1):
             logger.info("Training XGBoost for horizon h=%d …", h)
@@ -105,18 +106,16 @@ class XGBForecaster(Forecaster):
             y_h_train = y_train.shift(-h).dropna()
             X_h_train = X_train.loc[y_h_train.index, feature_cols]
 
-            model = XGBRegressor(
-                **self._params,
-                early_stopping_rounds=early_stop,
-            )
-
+            model_params = dict(self._params)
             fit_kwargs: dict = {}
-            if X_val is not None and y_val is not None:
+            if has_val:
                 y_h_val = y_val.shift(-h).dropna()
                 X_h_val = X_val.loc[y_h_val.index, feature_cols]
+                model_params["early_stopping_rounds"] = early_stop
                 fit_kwargs["eval_set"] = [(X_h_val, y_h_val)]
                 fit_kwargs["verbose"] = False
 
+            model = XGBRegressor(**model_params)
             model.fit(X_h_train, y_h_train, **fit_kwargs)
             self._models[h - 1] = model
 
