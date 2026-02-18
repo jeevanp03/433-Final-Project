@@ -30,6 +30,8 @@ paths:
   shap_values_parquet:  results/shap_values.parquet
   validation_metrics:   results/validation_metrics.csv
   test_metrics:         results/test_metrics.csv
+  backtest_results:     results/backtest_results.parquet
+  error_slices:         results/error_slices.csv
 
 
 # -----------------------------------------------------------------------------

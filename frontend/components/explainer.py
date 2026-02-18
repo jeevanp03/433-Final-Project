@@ -79,7 +79,7 @@ def _render_shap_panel(
     top3 = last_shap.abs().nlargest(3)
     driver_names = top3.index.tolist()
     driver_values = [float(last_shap[d]) for d in driver_names]
-    colours = [COLOURS["blue"] if v >= 0 else COLOURS["orange"] for v in driver_values]
+    colours = [COLOURS["accent"] if v >= 0 else COLOURS["alert"] for v in driver_values]
 
     fig = go.Figure(go.Bar(
         x=driver_values,
@@ -137,10 +137,10 @@ def _render_cost_donut(features_df: pd.DataFrame) -> None:
         values=list(costs.values()),
         hole=0.5,
         color_discrete_sequence=[
-            COLOURS["blue"],
-            COLOURS["orange"],
-            COLOURS["navy"],
-            COLOURS["green"],
+            COLOURS["accent"],
+            COLOURS["alert"],
+            COLOURS["primary"],
+            COLOURS["success"],
         ],
     )
     fig.update_layout(

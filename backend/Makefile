@@ -22,8 +22,9 @@
 # Default target
 .DEFAULT_GOAL := help
 
-# Python interpreter (uses whatever is active in the shell / venv)
-PYTHON := python
+# Python interpreter — use venv if it exists, else fall back to system python
+VENV := $(CURDIR)/.venv/bin/python
+PYTHON := $(if $(wildcard $(VENV)),$(VENV),python)
 
 # Config file (referenced for documentation purposes; src reads it directly)
 CONFIG := configs/params.yaml

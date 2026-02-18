@@ -30,8 +30,13 @@ Full design specification: `Planning/Energy_Dashboard_Design_Document.pdf`
 | Clean hourly rows | 34,169 |
 | Feature matrix (rows x cols) | 34,001 x 34 |
 | Test suite | 47 tests passing |
+| Rolling backtest origins | 618 |
+| Prediction records | 30,282 |
+| Error slicing dimensions | 5 |
 
 Conformal prediction half-widths (90 % coverage target): h=1 → **1.04 kW**, h=24 → **1.27 kW**.
+
+**Rolling backtest** (618 origins, step=21 h across 18-month validation window) with error slicing across 5 dimensions: hour of day, day of week, month, forecast horizon (h=1..24), and demand tercile (low/medium/high).
 
 ---
 
@@ -54,7 +59,9 @@ Conformal prediction half-widths (90 % coverage target): h=1 → **1.04 kW**, h=
 │   ├── results/
 │   │   ├── figures/                  Publication-quality PNGs
 │   │   ├── validation_metrics.csv
-│   │   └── test_metrics.csv
+│   │   ├── test_metrics.csv
+│   │   ├── backtest_results.parquet  30,282 rolling-window predictions
+│   │   └── error_slices.csv          Error analysis across 5 dimensions
 │   ├── src/
 │   │   ├── skills/                   14 shared utility modules
 │   │   ├── ingestion/                load.py, clean.py
@@ -111,7 +118,7 @@ Five-layer modular pipeline with Parquet data contracts between stages:
 | `src/models/baseline.py` | Seasonal-naive benchmark: y_hat(t+h) = y(t-168+h). |
 | `src/models/ridge.py` | Direct multi-step Ridge regression — 24 independent pipelines with TimeSeriesSplit CV alpha selection. |
 | `src/models/xgb.py` | Direct multi-step XGBoost — 24 independent regressors with early stopping; primary model. |
-| `src/models/evaluate.py` | Rolling-window backtesting harness; saves `validation_metrics.csv` and `test_metrics.csv`. |
+| `src/models/evaluate.py` | Rolling-window backtesting harness (618 origins); saves metrics CSVs, `backtest_results.parquet`, and `error_slices.csv` with 5-dimension error analysis. |
 | `src/models/conformal.py` | Split-conformal prediction intervals (90 % target coverage) using per-horizon validation residuals. |
 | `src/models/explain.py` | SHAP TreeExplainer analysis; saves `shap_values.parquet` and bee-swarm summary plot. |
 | `src/prescriptive/constraints.py` | `FlexibleLoad` dataclass and default appliance configurations from params.yaml. |
@@ -161,7 +168,8 @@ Dataset: UCI ML Repository — Individual Household Electric Power Consumption
 
 ### Option 1 — Makefile (recommended)
 
-Run all commands from `backend/`:
+Run all commands from `backend/`. The Makefile auto-detects the `.venv/` virtual
+environment — you do not need to activate it first:
 
 ```bash
 make all          # Full pipeline: clean → features → train → evaluate → test
@@ -182,6 +190,7 @@ make test         # Run pytest with coverage
 
 ```bash
 cd backend
+source .venv/bin/activate    # activate venv for manual commands
 python -m src.ingestion.load
 python -m src.ingestion.clean
 python -m src.features.engineer
@@ -198,10 +207,11 @@ python -m src.models.explain
 ## Launch Dashboard
 
 ```bash
-# From backend/ (uses Makefile):
+# From backend/ (uses Makefile — auto-detects venv, no activation needed):
+cd backend
 make dashboard
 
-# Or manually from the project root:
+# Or manually:
 cd frontend && PYTHONPATH=../backend streamlit run app.py
 ```
 

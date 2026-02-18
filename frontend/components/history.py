@@ -71,7 +71,7 @@ def _render_week_overlay(series: pd.Series) -> None:
         x=this_week.index,
         y=this_week.values,
         name="This Week",
-        line={"color": COLOURS["blue"], "width": 2},
+        line={"color": COLOURS["accent"], "width": 2},
     ))
     # Align last week's timestamps to this week for overlay
     if len(last_week) > 0:
@@ -80,7 +80,7 @@ def _render_week_overlay(series: pd.Series) -> None:
             x=aligned_idx,
             y=last_week.values,
             name="Last Week",
-            line={"color": COLOURS["navy"], "width": 2, "dash": "dash"},
+            line={"color": COLOURS["primary"], "width": 2, "dash": "dash"},
         ))
 
     fig.update_layout(

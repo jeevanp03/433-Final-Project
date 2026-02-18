@@ -85,7 +85,7 @@ def render_forecast_panel(
         x=actuals.index,
         y=actuals.values,
         name="Actual",
-        line={"color": COLOURS["navy"], "width": 2},
+        line={"color": COLOURS["primary"], "width": 2},
         mode="lines",
     ))
 
@@ -110,7 +110,7 @@ def render_forecast_panel(
         x=forecast_index,
         y=forecast_series.values,
         name="Forecast",
-        line={"color": COLOURS["blue"], "width": 2, "dash": "dash"},
+        line={"color": COLOURS["accent"], "width": 2, "dash": "dash"},
         mode="lines",
     ))
 

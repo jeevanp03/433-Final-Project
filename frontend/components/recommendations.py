@@ -131,13 +131,13 @@ def render_recommendations(
             x=hours,
             y=schedule.baseline_profile,
             name="Baseline",
-            line={"color": COLOURS["navy"], "width": 2},
+            line={"color": COLOURS["primary"], "width": 2},
         ))
         fig.add_trace(go.Scatter(
             x=hours,
             y=schedule.optimised_profile,
             name="Optimised",
-            line={"color": COLOURS["green"], "width": 2, "dash": "dash"},
+            line={"color": COLOURS["success"], "width": 2, "dash": "dash"},
         ))
         fig.update_layout(
             template="energy_dashboard",
