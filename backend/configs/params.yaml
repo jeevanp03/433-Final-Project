@@ -235,6 +235,7 @@ prescriptive:
       latest_finish:    23    # 11 PM
       preemptable:      false
       max_deferral_h:   6
+      original_start:   19    # User wants to run after dinner (on-peak)
 
     washing_machine:
       duration_h:       2     # rounded up from 1.5 h
@@ -243,6 +244,7 @@ prescriptive:
       latest_finish:    22    # 10 PM
       preemptable:      false
       max_deferral_h:   8
+      original_start:   10    # User wants to run mid-morning (on-peak)
 
     dryer:
       duration_h:       2
@@ -251,6 +253,7 @@ prescriptive:
       latest_finish:    22    # 10 PM
       preemptable:      false
       max_deferral_h:   6
+      original_start:   14    # User wants to run afternoon (on-peak)
 
     water_heater:
       duration_h:       3
@@ -259,6 +262,7 @@ prescriptive:
       latest_finish:    24
       preemptable:      true
       max_deferral_h:   12
+      original_start:   18    # User defaults to evening (on-peak)
 
   # Constraint relaxation: if infeasible, extend max_deferral by this step
   infeasibility_deferral_step_h: 1

@@ -60,7 +60,7 @@ def render_history(features_df: pd.DataFrame) -> None:
 def _render_week_overlay(series: pd.Series) -> None:
     """Week-over-week overlay: this week solid, last week dashed."""
     now = series.index[-1]
-    this_week = series.last("7D")
+    this_week = series.loc[series.index >= now - pd.Timedelta(days=7)]
     last_week_end = now - pd.Timedelta(weeks=1)
     last_week = series.loc[
         last_week_end - pd.Timedelta(days=7): last_week_end
@@ -89,12 +89,13 @@ def _render_week_overlay(series: pd.Series) -> None:
         yaxis_title="Power (kW)",
         height=350,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _render_monthly_trend(series: pd.Series) -> None:
     """Monthly average kW bar chart, coloured by season."""
-    monthly = series.resample("ME").mean().last("12ME")
+    monthly = series.resample("ME").mean()
+    monthly = monthly.iloc[-12:]
     months = monthly.index.to_period("M").astype(str)
     seasons = monthly.index.month.map(_month_to_season)
 
@@ -115,7 +116,7 @@ def _render_monthly_trend(series: pd.Series) -> None:
         yaxis_title="Avg Power (kW)",
         height=350,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _render_demand_heatmap(series: pd.Series) -> None:
@@ -137,7 +138,7 @@ def _render_demand_heatmap(series: pd.Series) -> None:
         aspect="auto",
     )
     fig.update_layout(template="energy_dashboard", height=400)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _month_to_season(month: int) -> str:

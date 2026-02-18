@@ -49,7 +49,7 @@ def render_status_bar(
     current_kw = float(last_row)
 
     # Today's total kWh (sum since midnight)
-    today = features_df[target].last("1D").dropna()
+    today = features_df[target].loc[features_df.index >= features_df.index[-1].normalize()].dropna()
     today_kwh = float(today.sum())
 
     # Estimated daily cost (EUR)

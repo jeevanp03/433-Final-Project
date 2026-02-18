@@ -93,7 +93,7 @@ def _render_shap_panel(
         height=250,
         margin={"l": 10, "r": 10, "t": 10, "b": 30},
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _render_cost_donut(features_df: pd.DataFrame) -> None:
@@ -102,7 +102,7 @@ def _render_cost_donut(features_df: pd.DataFrame) -> None:
 
     from src.prescriptive.pricing import build_hourly_price_vector, compute_cost
 
-    today = features_df.last("1D")
+    today = features_df.loc[features_df.index >= features_df.index[-1].normalize()]
     prices = build_hourly_price_vector(len(today))
 
     sub_cols = {
@@ -149,7 +149,7 @@ def _render_cost_donut(features_df: pd.DataFrame) -> None:
         showlegend=True,
         margin={"l": 10, "r": 10, "t": 10, "b": 10},
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _load_shap_values() -> Optional[pd.DataFrame]:

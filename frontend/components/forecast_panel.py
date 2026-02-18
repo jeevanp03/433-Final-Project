@@ -20,11 +20,26 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import streamlit as st
 
 from src.skills.config_loader import get_param
 from src.skills.plotly_theme import COLOURS
 from src.models.conformal import apply_intervals
+from src.prescriptive.pricing import get_tou_rate, get_tier_label
+
+
+# TOU tier colours
+_TOU_COLOURS = {
+    "off_peak": "rgba(56,142,60,0.18)",   # green
+    "mid_peak": "rgba(232,121,47,0.18)",   # orange
+    "on_peak": "rgba(211,47,47,0.18)",     # red
+}
+_TOU_LINE_COLOURS = {
+    "off_peak": COLOURS["success"],
+    "mid_peak": COLOURS["alert"],
+    "on_peak": COLOURS["danger"],
+}
 
 
 def render_forecast_panel(
@@ -72,16 +87,34 @@ def render_forecast_panel(
 
     # Build forecast index starting from the next hour
     last_ts = actuals.index[-1]
-    forecast_index = pd.date_range(
-        last_ts + pd.Timedelta(hours=1), periods=min(horizon, 24), freq="1h"
-    )
-    forecast_series = pd.Series(preds_24[: len(forecast_index)], index=forecast_index)
 
-    # Build chart
-    fig = go.Figure()
+    if horizon <= 24:
+        forecast_values = preds_24[:horizon]
+    else:
+        # 168h (7-day): tile the 24h pattern to cover the full horizon
+        n_tiles = int(np.ceil(horizon / 24))
+        forecast_values = np.tile(preds_24, n_tiles)[:horizon]
+
+    forecast_index = pd.date_range(
+        last_ts + pd.Timedelta(hours=1), periods=len(forecast_values), freq="1h"
+    )
+    forecast_series = pd.Series(forecast_values, index=forecast_index)
+
+    # Build chart — use subplots if TOU overlay is requested
+    if show_tou:
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+    else:
+        fig = go.Figure()
+
+    # Helper: add_trace with optional secondary_y
+    def _add(trace, secondary_y=False):
+        if show_tou:
+            fig.add_trace(trace, secondary_y=secondary_y)
+        else:
+            fig.add_trace(trace)
 
     # Actuals trace
-    fig.add_trace(go.Scatter(
+    _add(go.Scatter(
         x=actuals.index,
         y=actuals.values,
         name="Actual",
@@ -91,11 +124,15 @@ def render_forecast_panel(
 
     # Confidence band
     if conformal_widths is not None:
-        lower, upper = apply_intervals(
-            preds_2d[:, : len(forecast_index)],
-            {k: v for k, v in conformal_widths.items() if int(k[1:]) <= len(forecast_index)},
-        )
-        fig.add_trace(go.Scatter(
+        # For horizons > 24, reuse widths cyclically (h mod 24)
+        n_fc = len(forecast_index)
+        cyclic_widths = {
+            f"h{i+1}": conformal_widths[f"h{(i % 24) + 1}"]
+            for i in range(n_fc)
+        }
+        fc_preds = forecast_values.reshape(1, -1)
+        lower, upper = apply_intervals(fc_preds, cyclic_widths)
+        _add(go.Scatter(
             x=list(forecast_index) + list(forecast_index[::-1]),
             y=list(upper[0]) + list(lower[0][::-1]),
             fill="toself",
@@ -106,7 +143,7 @@ def render_forecast_panel(
         ))
 
     # Forecast trace
-    fig.add_trace(go.Scatter(
+    _add(go.Scatter(
         x=forecast_index,
         y=forecast_series.values,
         name="Forecast",
@@ -114,12 +151,53 @@ def render_forecast_panel(
         mode="lines",
     ))
 
-    fig.update_layout(
+    # TOU price overlay on secondary y-axis
+    if show_tou:
+        # Build TOU price step for forecast hours
+        tou_rates = np.array([get_tou_rate(ts.hour) for ts in forecast_index])
+        tier_labels = [get_tier_label(ts.hour) for ts in forecast_index]
+
+        # Coloured step chart for TOU rate
+        _add(go.Scatter(
+            x=forecast_index,
+            y=tou_rates,
+            name="TOU Rate (EUR/kWh)",
+            line={"color": COLOURS["alert"], "width": 1.5, "shape": "hv"},
+            mode="lines",
+            opacity=0.7,
+        ), secondary_y=True)
+
+        # Add shaded regions per tier
+        for i, ts in enumerate(forecast_index):
+            tier = tier_labels[i]
+            fig.add_vrect(
+                x0=ts - pd.Timedelta(minutes=30),
+                x1=ts + pd.Timedelta(minutes=30),
+                fillcolor=_TOU_COLOURS.get(tier, "rgba(0,0,0,0.05)"),
+                line_width=0,
+                layer="below",
+            )
+
+        fig.update_yaxes(
+            title_text="TOU Rate (EUR/kWh)",
+            secondary_y=True,
+            showgrid=False,
+        )
+
+    layout_kwargs = dict(
         template="energy_dashboard",
         xaxis_title="Time",
-        yaxis_title="Power (kW)",
         legend={"orientation": "h"},
-        height=400,
+        height=450 if show_tou else 400,
     )
+    if show_tou:
+        fig.update_yaxes(title_text="Power (kW)", secondary_y=False)
+    else:
+        layout_kwargs["yaxis_title"] = "Power (kW)"
 
-    st.plotly_chart(fig, use_container_width=True)
+    fig.update_layout(**layout_kwargs)
+
+    if horizon > 24:
+        st.caption("7-day forecast repeats the 24h daily pattern.")
+
+    st.plotly_chart(fig, width="stretch")

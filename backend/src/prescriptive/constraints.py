@@ -105,7 +105,7 @@ def get_default_loads() -> list[FlexibleLoad]:
                 latest_finish=int(cfg["latest_finish"]),
                 preemptable=bool(cfg.get("preemptable", False)),
                 max_deferral_h=int(cfg.get("max_deferral_h", 6)),
-                original_start=int(cfg["original_start"]) if "original_start" in cfg else earliest,
+                original_start=int(cfg["original_start"]) if "original_start" in cfg else None,
             )
         )
     return loads

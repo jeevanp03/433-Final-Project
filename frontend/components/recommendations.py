@@ -99,14 +99,20 @@ def render_recommendations(
         with st.container(border=True):
             cols = st.columns([3, 1, 1])
             with cols[0]:
-                if original_start is not None:
+                label = load.name.replace('_', ' ').title()
+                if original_start is not None and original_start != optimised_start:
                     st.write(
-                        f"**{load.name.replace('_', ' ').title()}** — "
+                        f"**{label}** — "
                         f"Move from {original_start:02d}:00 → {optimised_start:02d}:00"
+                    )
+                elif original_start is not None:
+                    st.write(
+                        f"**{label}** — "
+                        f"Keep at {optimised_start:02d}:00 (already optimal)"
                     )
                 else:
                     st.write(
-                        f"**{load.name.replace('_', ' ').title()}** — "
+                        f"**{label}** — "
                         f"Recommend start at {optimised_start:02d}:00"
                     )
                 st.caption(
@@ -145,4 +151,4 @@ def render_recommendations(
             yaxis_title="Load (kW)",
             height=300,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
