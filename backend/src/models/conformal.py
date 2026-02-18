@@ -177,10 +177,13 @@ if __name__ == "__main__":
     from src.skills.temporal_split import get_splits
     from src.models.xgb import XGBForecaster
 
-    splits = get_splits(df)
+    train, val, test = get_splits(df)
+    target = get_param("data.target_column")
+    X_val, y_val = val.drop(columns=[target]), val[target]
+
     model = XGBForecaster.load()
 
-    y_pred_val = model.predict(splits["X_val"])
-    widths = compute_conformal_widths(splits["y_val"], y_pred_val)
+    y_pred_val = model.predict(X_val)
+    widths = compute_conformal_widths(y_val, y_pred_val)
     save_conformal_widths(widths)
     print("Conformal widths:", widths)

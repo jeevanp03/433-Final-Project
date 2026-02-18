@@ -253,13 +253,14 @@ if __name__ == "__main__":
     df = pd.read_parquet(project_root / get_param("paths.features_parquet"))
 
     from src.skills.temporal_split import get_splits
-    splits = get_splits(df)
+    train, val, test = get_splits(df)
+
+    target = get_param("data.target_column")
+    X_train, y_train = train.drop(columns=[target]), train[target]
+    X_val, y_val = val.drop(columns=[target]), val[target]
 
     model = XGBForecaster()
-    model.fit(
-        splits["X_train"], splits["y_train"],
-        X_val=splits["X_val"], y_val=splits["y_val"],
-    )
+    model.fit(X_train, y_train, X_val=X_val, y_val=y_val)
     model.save()
-    metrics = model.evaluate(splits["X_val"], splits["y_val"])
+    metrics = model.evaluate(X_val, y_val)
     print("XGBoost h=1 validation metrics:", metrics)

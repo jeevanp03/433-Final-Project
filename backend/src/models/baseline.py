@@ -152,10 +152,13 @@ if __name__ == "__main__":
     df = pd.read_parquet(features_path)
 
     from src.skills.temporal_split import get_splits
-    splits = get_splits(df)
+    train, val, test = get_splits(df)
 
     target: str = get_param("data.target_column")
+    X_train, y_train = train.drop(columns=[target]), train[target]
+    X_val, y_val = val.drop(columns=[target]), val[target]
+
     model = SeasonalNaive()
-    model.fit(splits["X_train"], splits["y_train"])
-    metrics = model.evaluate(splits["X_val"], splits["y_val"])
+    model.fit(X_train, y_train)
+    metrics = model.evaluate(X_val, y_val)
     print("Seasonal Naive validation metrics:", metrics)

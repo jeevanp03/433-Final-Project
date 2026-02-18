@@ -78,6 +78,7 @@ backend/results/*.parquet
 backend/results/figures/*.png
 backend/results/figures/*.pdf
 backend/results/figures/*.svg
+backend/results/figures/*.html
 # Keep directory structure
 !backend/results/.gitkeep
 !backend/results/figures/.gitkeep

@@ -60,7 +60,11 @@ def run_evaluation(df: Optional[pd.DataFrame] = None) -> dict[str, pd.DataFrame]
     if df is None:
         df = _load_features()
 
-    splits = get_splits(df)
+    train, val, test = get_splits(df)
+    target = get_param("data.target_column")
+    X_train, y_train = train.drop(columns=[target]), train[target]
+    X_val, y_val = val.drop(columns=[target]), val[target]
+    X_test, y_test = test.drop(columns=[target]), test[target]
 
     # Lazy imports to avoid circular dependencies at module load time
     from src.models.baseline import SeasonalNaive
@@ -78,19 +82,14 @@ def run_evaluation(df: Optional[pd.DataFrame] = None) -> dict[str, pd.DataFrame]
 
     for name, model in models.items():
         logger.info("Fitting model: %s", name)
-        model.fit(
-            splits["X_train"],
-            splits["y_train"],
-            X_val=splits.get("X_val"),
-            y_val=splits.get("y_val"),
-        )
+        model.fit(X_train, y_train, X_val=X_val, y_val=y_val)
 
         # Validation metrics
-        val_metrics = _compute_metrics(model, splits["X_val"], splits["y_val"])
+        val_metrics = _compute_metrics(model, X_val, y_val)
         val_records.append({"model": name, **val_metrics})
 
         # Test metrics
-        test_metrics = _compute_metrics(model, splits["X_test"], splits["y_test"])
+        test_metrics = _compute_metrics(model, X_test, y_test)
         test_records.append({"model": name, **test_metrics})
 
     val_df = pd.DataFrame(val_records).set_index("model")

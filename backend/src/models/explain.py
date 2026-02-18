@@ -209,12 +209,15 @@ if __name__ == "__main__":
     from src.skills.temporal_split import get_splits
     from src.models.xgb import XGBForecaster
 
-    splits = get_splits(df)
+    train, val, test = get_splits(df)
+    target = get_param("data.target_column")
+    X_val = val.drop(columns=[target])
+
     model = XGBForecaster.load()
 
-    shap_df = compute_shap_values(model, splits["X_val"])
+    shap_df = compute_shap_values(model, X_val)
     save_shap_values(shap_df)
-    plot_shap_summary(shap_df, splits["X_val"])
+    plot_shap_summary(shap_df, X_val)
 
     top = get_top_drivers(shap_df, shap_df.index[0])
     print("Top 3 SHAP drivers for first validation row:", top)
