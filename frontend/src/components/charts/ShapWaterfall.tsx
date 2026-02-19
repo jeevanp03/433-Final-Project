@@ -16,7 +16,7 @@ export default function ShapWaterfall({ drivers, maxBars = 8, height = 280 }: Sh
   const barH = Math.max(24, (height - 16) / sorted.length);
 
   return (
-    <div className="space-y-1" style={{ minHeight: height }}>
+    <div className="space-y-1" style={{ minHeight: height }} role="img" aria-label={`SHAP waterfall chart showing top ${sorted.length} feature contributions to forecast`}>
       {sorted.map((d) => {
         const pct = (Math.abs(d.shap_value) / maxAbs) * 100;
         const isPositive = d.shap_value > 0;

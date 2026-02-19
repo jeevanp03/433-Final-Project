@@ -4,7 +4,8 @@ MSE 433 Final Project — an end-to-end machine-learning pipeline that ingests
 the UCI Individual Household Electric Power Consumption dataset (2,075,259
 minute-level rows), produces hourly XGBoost forecasts with conformal prediction
 intervals, and surfaces prescriptive load-shift recommendations through an
-interactive Streamlit dashboard.
+interactive React dashboard backed by a FastAPI server with an LLM-powered
+chat assistant.
 
 **Stakeholders:** homeowners seeking to understand and reduce energy spend;
 utility-portal teams embedding a demand-analytics widget.
@@ -29,7 +30,8 @@ Full design specification: `Planning/Energy_Dashboard_Design_Document.pdf`
 | Raw minute rows | 2,075,259 |
 | Clean hourly rows | 34,169 |
 | Feature matrix (rows x cols) | 34,001 x 34 |
-| Test suite | 47 tests passing |
+| Backend test suite | 47 tests passing |
+| Frontend test suite | 100 tests passing |
 | Rolling backtest origins | 618 |
 | Prediction records | 30,282 |
 | Error slicing dimensions | 5 |
@@ -69,14 +71,37 @@ Conformal prediction half-widths (90 % coverage target): h=1 → **1.04 kW**, h=
 │   │   ├── models/                   base.py, baseline.py, xgb.py, ridge.py,
 │   │   │                             evaluate.py, conformal.py, explain.py
 │   │   └── prescriptive/             constraints.py, pricing.py, optimiser.py
+│   ├── server/                       FastAPI backend server
+│   │   ├── routers/                  REST API endpoints (forecast, simulate, chat)
+│   │   ├── llm/                      Ollama LLM orchestrator, tools, prompts
+│   │   ├── deps.py                   Lazy model/data loading
+│   │   ├── schemas.py                Pydantic request/response models
+│   │   └── main.py                   FastAPI app entry point
 │   ├── tests/                        47 unit + integration tests
 │   ├── Makefile
 │   └── requirements.txt
-├── frontend/
-│   ├── app.py                        Streamlit entry point
-│   ├── components/                   status_bar, forecast_panel, history,
-│   │                                 recommendations, explainer
-│   └── requirements.txt
+├── frontend/                         React 19 + TypeScript SPA (Vite 7)
+│   ├── src/
+│   │   ├── api/                      Axios client, TanStack Query hooks
+│   │   ├── components/
+│   │   │   ├── ui/                   shadcn/ui primitives
+│   │   │   ├── charts/               ForecastChart, FanChart, Heatmap, etc.
+│   │   │   ├── controls/             DateRangePicker, HorizonToggle, etc.
+│   │   │   ├── cards/                KpiCard, RecommendationCard, etc.
+│   │   │   ├── chat/                 ChatDrawer, MessageBubble, etc.
+│   │   │   └── layout/               Sidebar, TopBar, AppLayout
+│   │   ├── pages/                    6 pages: Dashboard, Forecast, Simulate,
+│   │   │                             Analytics, Actions, Settings
+│   │   ├── stores/                   7 Zustand state slices
+│   │   ├── hooks/                    Custom React hooks
+│   │   ├── lib/                      Utility functions
+│   │   ├── types/                    TypeScript types + Zod schemas
+│   │   └── theme/                    Chart theme config
+│   ├── tests/                        100 Vitest unit + component + integration tests
+│   ├── package.json
+│   ├── vitest.config.ts
+│   └── vite.config.ts
+├── frontend-streamlit/               Old Streamlit frontend (archived)
 ├── Planning/                         Design document PDFs
 └── README.md                         This file
 ```
@@ -85,7 +110,7 @@ Conformal prediction half-widths (90 % coverage target): h=1 → **1.04 kW**, h=
 
 ## Architecture
 
-Five-layer modular pipeline with Parquet data contracts between stages:
+Five-layer ML pipeline with Parquet data contracts, served via FastAPI to a React SPA:
 
 ```
 [Raw CSV] → load.py → [Minute DF] → clean.py → [Hourly Parquet]
@@ -102,8 +127,14 @@ Five-layer modular pipeline with Parquet data contracts between stages:
                                                        |
                                           [Recommendation JSON]
                                                        |
-                                              [Dashboard UI]
+                                              FastAPI Server (:8000)
+                                                       |
+                                           React Dashboard (:5173)
 ```
+
+**Frontend stack:** React 19, TypeScript 5.9 (strict), Vite 7, Tailwind CSS 4, shadcn/ui, Recharts, D3, Zustand, TanStack Query, Framer Motion, Zod.
+
+**Backend API:** FastAPI with lazy model loading, SSE streaming for LLM chat, Ollama integration.
 
 ---
 
@@ -124,30 +155,46 @@ Five-layer modular pipeline with Parquet data contracts between stages:
 | `src/prescriptive/constraints.py` | `FlexibleLoad` dataclass and default appliance configurations from params.yaml. |
 | `src/prescriptive/pricing.py` | 3-tier TOU tariff schedule (off-peak / mid-peak / on-peak); hourly cost computation. |
 | `src/prescriptive/optimiser.py` | MILP load-shift engine (PuLP/CBC); minimises weighted peak and cost with incremental infeasibility relaxation. |
+| `server/main.py` | FastAPI app with CORS, mounts all API routers. |
+| `server/routers/` | REST endpoints: status, forecast, history, backtest, simulate, recommend, explain, chat. |
+| `server/llm/` | Ollama LLM orchestrator with 10 tool functions, SSE streaming, safety guardrails. |
 
 ---
 
 ## Setup
 
-**Prerequisites:** Python 3.10 or later.
+**Prerequisites:** Python 3.10+, Node.js 18+.
+
+### 1. Environment Variables
+
+Copy the example env file at the **project root** and adjust as needed:
 
 ```bash
-# 1. Clone the repository
-git clone <repo-url>
-cd 433-Final-Project
+cp .env.example .env
+```
 
-# 2. Create and activate a virtual environment
+| Variable | Default | Description |
+|---|---|---|
+| `API_PORT` | `8000` | FastAPI server port |
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama LLM server URL |
+| `OLLAMA_MODEL` | `llama3:8b` | Default model for chat/narration |
+| `CORS_ORIGINS` | `http://localhost:5173,...` | Allowed CORS origins (comma-separated) |
+| `VITE_API_URL` | `http://localhost:8000` | API base URL used by the React frontend |
+
+Both the backend (FastAPI) and frontend (Vite) read from this single root `.env` file.
+
+### 2. Backend Setup
+
+```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate          # macOS / Linux
 # .venv\Scripts\activate           # Windows
 
-# 3. Install dependencies
 pip install -r requirements.txt
-# or
-make install
+# or: make install
 
-# 4. Download the UCI dataset (one-time setup, ~25 MB)
+# Download the UCI dataset (one-time, ~25 MB)
 python - <<'EOF'
 from ucimlrepo import fetch_ucirepo
 import os
@@ -162,6 +209,41 @@ EOF
 Dataset: UCI ML Repository — Individual Household Electric Power Consumption
 (id=235): https://archive.ics.uci.edu/dataset/235
 
+### 3. Frontend Setup
+
+```bash
+cd frontend
+npm install
+```
+
+### 4. LLM Setup (Optional — for chat assistant)
+
+The dashboard includes an AI chat assistant powered by [Ollama](https://ollama.com).
+This is **optional** — all forecast, analytics, and recommendation features work
+without it. The chat panel gracefully degrades when Ollama is unavailable.
+
+```bash
+# 1. Install Ollama (macOS)
+brew install ollama
+# Or download from https://ollama.com/download
+
+# 2. Start the Ollama server
+ollama serve
+
+# 3. Pull a model (choose one)
+ollama pull llama3:8b              # Recommended (requires ~8 GB RAM)
+ollama pull deepseek-r1:1.5b      # Lightweight alternative (~2 GB RAM)
+
+# 4. Verify it's running
+curl http://localhost:11434/api/tags
+```
+
+The backend auto-detects installed models. Set `OLLAMA_MODEL` in `.env` to change
+the default. The Settings page also has an LLM model selector dropdown.
+
+**Without Ollama:** Chat drawer shows an offline message. Auto-narration panels
+fall back to template-based text. All other dashboard features work normally.
+
 ---
 
 ## Reproducing All Results
@@ -172,15 +254,15 @@ Run all commands from `backend/`. The Makefile auto-detects the `.venv/` virtual
 environment — you do not need to activate it first:
 
 ```bash
-make all          # Full pipeline: clean → features → train → evaluate → test
+make all          # Full pipeline: clean -> features -> train -> evaluate -> test
 ```
 
 Individual targets:
 
 ```bash
 make ingest       # Step 1: Load raw CSV, log shape and null counts
-make clean-data   # Step 2: Hourly resampling, gap-filling → Parquet
-make features     # Step 3: Build feature matrix → features.parquet
+make clean-data   # Step 2: Hourly resampling, gap-filling -> Parquet
+make features     # Step 3: Build feature matrix -> features.parquet
 make train        # Step 4: Train XGBoost + Ridge (24 models each) + conformal
 make evaluate     # Step 5: Backtesting metrics + SHAP values
 make test         # Run pytest with coverage
@@ -204,22 +286,40 @@ python -m src.models.explain
 
 ---
 
-## Launch Dashboard
+## Launch Application
+
+### Start the FastAPI server (port 8000)
 
 ```bash
-# From backend/ (uses Makefile — auto-detects venv, no activation needed):
 cd backend
-make dashboard
-
-# Or manually:
-cd frontend && PYTHONPATH=../backend streamlit run app.py
+uvicorn server.main:app --reload --port 8000
+# or
+make server
 ```
 
-Dashboard is available at http://localhost:8501.
+### Start the React dev server (port 5173)
+
+```bash
+cd frontend
+npm run dev
+```
+
+The dashboard is available at http://localhost:5173.
+The API proxy forwards `/api/*` requests from the frontend to FastAPI at `:8000`.
+
+### Production build
+
+```bash
+cd frontend
+npm run build     # Outputs to frontend/dist/
+npm run preview   # Preview the production build
+```
 
 ---
 
 ## Run Tests
+
+### Backend tests (Python)
 
 ```bash
 cd backend
@@ -229,12 +329,53 @@ pytest tests/test_features.py -v             # Feature leakage tests only
 pytest tests/ --cov=src --cov-report=html    # With HTML coverage report
 ```
 
+### Frontend tests (TypeScript)
+
+```bash
+cd frontend
+
+npm test                  # Run all 100 tests (vitest run)
+npm run test:watch        # Watch mode for development
+```
+
+**Frontend test coverage (100 tests):**
+
+| Category | Tests | Files |
+|---|---|---|
+| Zustand stores (7 stores) | 45 | `tests/stores.test.ts` |
+| API client + Zod schemas | 22 | `tests/api.test.ts` |
+| Component tests | 21 | `tests/components.test.tsx` |
+| SSE + integration | 12 | `tests/integration.test.ts` |
+
 Key acceptance criteria enforced by tests:
 
 - XGBoost MAE beats Seasonal Naive by >= 15 % on validation
 - Conformal PI coverage >= 85 % on test set
 - No feature leakage (every feature at row i uses only t < t_i data)
 - Prescriptive optimizer produces a feasible schedule for all default loads
+- All 7 Zustand stores reset correctly with proper state isolation
+- Zod schemas reject malformed API responses
+- KpiCard threshold/delta rendering and RecommendationCard action lifecycle
+
+---
+
+## API Endpoints
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/status` | GET | Current kW, today's kWh, estimated cost, alert |
+| `/api/forecast` | GET | 24h or 168h forecast with prediction intervals |
+| `/api/history` | GET | Historical actuals by date range and granularity |
+| `/api/backtest` | GET | Rolling backtest results for validation origins |
+| `/api/decompose` | GET | STL decomposition (trend/seasonal/residual) |
+| `/api/metrics` | GET | Model evaluation metrics by split |
+| `/api/recommend` | GET/POST | Load-shift optimization with constraints |
+| `/api/explain` | GET | SHAP-based explanation for a forecast hour |
+| `/api/simulate` | POST | Monte Carlo simulation with scenario blocks |
+| `/api/sensitivity` | POST | Tornado-chart sensitivity analysis |
+| `/api/chat` | POST | LLM chat with SSE streaming |
+| `/api/chat/narrate` | POST | Auto-narration for dashboard page |
+| `/api/chat/suggest` | POST | Context-aware suggestion chips |
 
 ---
 
@@ -276,20 +417,21 @@ Key sections in `params.yaml`:
 | XGBoost | Direct multi-step, 24 models | Primary model; early stopping on val MAE |
 
 **Temporal splits (strictly chronological — no random shuffling):**
-- Train: Dec 2006 – Dec 2008
-- Validate: Jan 2009 – Jun 2010 (rolling 24 h windows)
-- Test: Jul 2010 – Nov 2010 (held out until final evaluation)
+- Train: Dec 2006 -- Dec 2008
+- Validate: Jan 2009 -- Jun 2010 (rolling 24 h windows)
+- Test: Jul 2010 -- Nov 2010 (held out until final evaluation)
 
 ---
 
 ## Colour Palette
 
-Defined in `backend/src/skills/plotly_theme.py` and registered as a Plotly template.
+Defined in `backend/src/skills/plotly_theme.py` (backend) and `frontend/src/theme/chartTheme.ts` + `frontend/src/index.css` (frontend).
 
 | Role | Hex |
 |---|---|
 | Headers / text | `#1B2A4A` (Navy) |
 | Accent / forecast | `#2E75B6` (Blue) |
+| Simulation | `#26A69A` (Teal) |
 | Alerts | `#E8792F` (Orange) |
 | Danger | `#D32F2F` (Red) |
 | Success | `#388E3C` (Green) |

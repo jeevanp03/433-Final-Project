@@ -26,8 +26,11 @@ ENV/
 
 # --- Environment & secrets ---------------------------------------------------
 .env
-.env.*
-*.env
+.env.local
+.env.*.local
+# Allow .env.example to be committed
+!.env.example
+!frontend/.env.example
 
 
 # --- IDE & editor files ------------------------------------------------------

@@ -37,7 +37,7 @@ export default function TimelineGantt({ blocks, onBlockChange, height = 200 }: T
   }
 
   return (
-    <div style={{ height }}>
+    <div style={{ height }} role="img" aria-label={`Schedule timeline showing ${blocks.length} appliance blocks across 24 hours`}>
       {/* Hour labels */}
       <div className="flex mb-1 pl-24">
         {Array.from({ length: 25 }, (_, h) => (

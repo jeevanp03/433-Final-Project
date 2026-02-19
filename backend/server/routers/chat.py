@@ -11,11 +11,15 @@ GET  /api/llm/models  — List installed Ollama models
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "llama3:8b")
 
 from server.llm.orchestrator import (
     check_ollama_health,
@@ -89,8 +93,8 @@ class LlmModelsResponse(BaseModel):
 @router.post("/chat")
 async def chat_stream(req: ChatRequest, request: Request):
     """Main conversational interface. Streams tokens via SSE."""
-    ollama_url = "http://localhost:11434"  # Could be made configurable
-    model = req.model or "llama3:8b"
+    ollama_url = OLLAMA_URL
+    model = req.model or DEFAULT_MODEL
 
     # Auto-select if preferred model isn't available
     model = await select_model(model, ollama_url)
@@ -149,6 +153,8 @@ async def narrate(req: NarrateRequest):
     result = await generate_narration(
         page=req.page,
         context=context,
+        model=DEFAULT_MODEL,
+        ollama_url=OLLAMA_URL,
     )
     return NarrateResponse(**result)
 
@@ -164,6 +170,8 @@ async def suggest(req: SuggestRequest):
     suggestions = await generate_suggestions(
         page=req.page,
         context=context,
+        model=DEFAULT_MODEL,
+        ollama_url=OLLAMA_URL,
     )
     return SuggestResponse(suggestions=suggestions)
 
@@ -175,10 +183,10 @@ async def suggest(req: SuggestRequest):
 @router.get("/llm/status", response_model=LlmStatusResponse)
 async def llm_status():
     """Check if Ollama is running. Frontend uses this to show/hide LLM features."""
-    health = await check_ollama_health()
+    health = await check_ollama_health(OLLAMA_URL)
     model = "none"
     if health["available"] and health["model_names"]:
-        model = await select_model()
+        model = await select_model(ollama_url=OLLAMA_URL)
     return LlmStatusResponse(
         available=health["available"],
         model=model,
@@ -192,6 +200,6 @@ async def llm_status():
 @router.get("/llm/models", response_model=LlmModelsResponse)
 async def llm_models():
     """List Ollama models available for the Settings dropdown."""
-    health = await check_ollama_health()
+    health = await check_ollama_health(OLLAMA_URL)
     models = [LlmModel(**m) for m in health.get("models", [])]
     return LlmModelsResponse(models=models)

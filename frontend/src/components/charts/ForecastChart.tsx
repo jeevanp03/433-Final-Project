@@ -44,6 +44,7 @@ export default function ForecastChart({
   }));
 
   return (
+    <div role="img" aria-label={`Forecast chart showing ${points.length} data points from ${data[0]?.fullTime ?? ''} to ${data[data.length - 1]?.fullTime ?? ''}`}>
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
         <CartesianGrid
@@ -152,5 +153,6 @@ export default function ForecastChart({
         ))}
       </ComposedChart>
     </ResponsiveContainer>
+    </div>
   );
 }

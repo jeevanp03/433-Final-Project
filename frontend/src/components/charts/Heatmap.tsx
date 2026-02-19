@@ -52,7 +52,7 @@ export default function Heatmap({
   const cellH = Math.max(3, Math.min(20, (height - 40) / dates.length));
 
   return (
-    <div className="relative" style={{ height }}>
+    <div className="relative" style={{ height }} role="img" aria-label={`Energy consumption heatmap showing ${dates.length} days by 24 hours, values range from ${min.toFixed(1)} to ${max.toFixed(1)} kW`}>
       {/* Hour labels */}
       <div className="flex pl-20 mb-1">
         {Array.from({ length: 24 }, (_, h) => (

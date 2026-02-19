@@ -8,10 +8,16 @@
 #   make features    Build feature matrix Parquet (step 3)
 #   make train       Train XGBoost + Ridge models (step 4)
 #   make evaluate    Run backtesting and save metrics (step 5)
-#   make dashboard   Launch the Streamlit dashboard
+#   make server      Start FastAPI backend server on port 8000
 #   make test        Run the full pytest test suite
 #   make all         Full pipeline: clean-data → features → train → evaluate → test
 #   make help        Print this help message
+#
+# Frontend (React):
+#   make frontend-install  Install React frontend dependencies
+#   make frontend-dev      Start React dev server on port 5173
+#   make frontend-build    Production build of React frontend
+#   make frontend-test     Run Vitest frontend tests
 #
 # All python -m invocations run from backend/ so relative imports
 # resolve correctly.  Activate your venv before running make targets.
@@ -44,7 +50,7 @@ help:
 	@echo "  features          Build feature matrix from clean Parquet (engineer.py)"
 	@echo "  train             Train XGBoost + Ridge models (xgb.py, ridge.py)"
 	@echo "  evaluate          Backtesting evaluation and save metrics CSV (evaluate.py)"
-	@echo "  dashboard         Launch the Streamlit dashboard on port 8501"
+	@echo "  server            Start FastAPI backend server on port 8000"
 	@echo "  test              Run pytest test suite with coverage report"
 	@echo "  all               Full pipeline: clean-data → features → train → evaluate → test"
 	@echo ""
@@ -131,15 +137,17 @@ evaluate: train
 
 
 # -----------------------------------------------------------------------------
-# dashboard: Launch the Streamlit dashboard (blocking)
+# dashboard: Launch both FastAPI server and React dev server
 # Depends on: all pipeline artefacts (train + evaluate recommended)
-# Port is read from configs/params.yaml (default: 8501)
+# FastAPI on :8000, React dev on :5173 (proxies /api to :8000)
 # -----------------------------------------------------------------------------
 dashboard:
-	@echo "--- Launching Streamlit dashboard ---"
-	cd ../frontend && PYTHONPATH=../backend $(PYTHON) -m streamlit run app.py \
-		--server.port 8501 \
-		--server.headless false
+	@echo "--- Launching FastAPI server + React dev server ---"
+	@echo "Start in two terminals:"
+	@echo "  Terminal 1 (backend): make server"
+	@echo "  Terminal 2 (frontend): make frontend-dev"
+	@echo ""
+	@echo "Or use: make server & make frontend-dev"
 
 
 # -----------------------------------------------------------------------------
@@ -157,7 +165,7 @@ test:
 all: clean-data features train evaluate test
 	@echo ""
 	@echo "=== Full pipeline complete. All artefacts reproduced. ==="
-	@echo "Run 'make dashboard' to launch the interactive app."
+	@echo "Run 'make server' + 'make frontend-dev' to launch the app."
 
 
 # -----------------------------------------------------------------------------
@@ -204,10 +212,14 @@ frontend-test:
 
 
 # -----------------------------------------------------------------------------
-# server: Start the FastAPI backend server on port 8000
+# server: Start the FastAPI backend server
+# Reads API_PORT from ../.env (default: 8000)
 # Depends on: all pipeline artefacts (train + evaluate recommended)
 # The Vite dev server proxies /api requests here.
 # -----------------------------------------------------------------------------
+API_PORT ?= 8000
+-include ../.env
+
 server:
-	@echo "--- Starting FastAPI server (port 8000) ---"
-	$(PYTHON) -m uvicorn server.main:app --reload --port 8000
+	@echo "--- Starting FastAPI server (port $(API_PORT)) ---"
+	$(PYTHON) -m uvicorn server.main:app --reload --port $(API_PORT)

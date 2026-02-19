@@ -23,6 +23,7 @@ export default function TornadoChart({ bars, baselineValue, metric, height = 300
   }));
 
   return (
+    <div role="img" aria-label={`Sensitivity tornado chart showing ${sorted.length} parameters ranked by impact on ${metric}`}>
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, bottom: 0, left: 100 }}>
         <CartesianGrid
@@ -65,5 +66,6 @@ export default function TornadoChart({ bars, baselineValue, metric, height = 300
         </Bar>
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 }
