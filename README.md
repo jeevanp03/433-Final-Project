@@ -288,24 +288,27 @@ python -m src.models.explain
 
 ## Launch Application
 
-### Start the FastAPI server (port 8000)
+### Quick start (one terminal)
 
 ```bash
 cd backend
-uvicorn server.main:app --reload --port 8000
-# or
-make server
+make dev
 ```
 
-### Start the React dev server (port 5173)
+This launches the FastAPI server (`:8000`) and React dev server (`:5173`) together.
+`Ctrl+C` stops both. The dashboard is available at **http://localhost:5173**.
 
-```bash
-cd frontend
-npm run dev
-```
+### Full start with LLM chat (3 terminals)
 
-The dashboard is available at http://localhost:5173.
+| Terminal | Command | Purpose |
+|---|---|---|
+| 1 | `ollama serve` | LLM server (optional — for chat assistant) |
+| 2 | `cd backend && make server` | FastAPI backend on port 8000 |
+| 3 | `cd frontend && npm run dev` | React dev server on port 5173 |
+
 The API proxy forwards `/api/*` requests from the frontend to FastAPI at `:8000`.
+If Ollama is not running, the chat drawer shows an offline message and all other
+features work normally.
 
 ### Production build
 

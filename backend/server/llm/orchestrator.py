@@ -13,12 +13,15 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 from collections import defaultdict
 from typing import Any, AsyncGenerator
 
 import httpx
+
+_DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "deepseek-r1:1.5b")
 
 from server.llm.memory import trim_messages_for_context
 from server.llm.prompts import build_system_prompt
@@ -63,7 +66,7 @@ async def check_ollama_health(ollama_url: str = "http://localhost:11434") -> dic
 
 
 async def select_model(
-    preferred: str = "llama3:8b",
+    preferred: str = _DEFAULT_MODEL,
     ollama_url: str = "http://localhost:11434",
 ) -> str:
     """Auto-select the best available model."""
@@ -81,8 +84,8 @@ async def select_model(
 
     # Fallback priority
     preferences = [
-        "llama3:8b", "llama3.1:8b", "llama3:latest",
         "deepseek-r1:1.5b", "deepseek-r1:latest",
+        "llama3:8b", "llama3.1:8b", "llama3:latest",
     ]
     for model in preferences:
         if model in available:
@@ -228,7 +231,7 @@ def check_rate_limit(session_id: str = "default") -> bool:
 async def stream_chat(
     messages: list[dict[str, Any]],
     context: dict[str, Any] | None = None,
-    model: str = "llama3:8b",
+    model: str = _DEFAULT_MODEL,
     max_tool_calls: int = 3,
     temperature: float = 0.3,
     ollama_url: str = "http://localhost:11434",
@@ -443,7 +446,7 @@ async def stream_chat(
 async def generate_narration(
     page: str,
     context: dict[str, Any],
-    model: str = "llama3:8b",
+    model: str = _DEFAULT_MODEL,
     ollama_url: str = "http://localhost:11434",
 ) -> dict[str, Any]:
     """Generate a page narration (non-streaming).
@@ -507,7 +510,7 @@ async def generate_narration(
 async def generate_suggestions(
     page: str,
     context: dict[str, Any],
-    model: str = "llama3:8b",
+    model: str = _DEFAULT_MODEL,
     ollama_url: str = "http://localhost:11434",
 ) -> list[dict[str, str]]:
     """Generate context-aware suggestion chips.

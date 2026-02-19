@@ -38,7 +38,7 @@ const METER_LABELS: Record<ApiMeter, string> = {
 function Section({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="rounded-lg bg-card shadow-card">
       <button onClick={() => setOpen(!open)} className="flex items-center justify-between w-full px-5 py-3 text-left cursor-pointer">
         <h3 className="text-section-heading text-foreground">{title}</h3>
         {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
@@ -111,7 +111,7 @@ export default function Analytics() {
       label: format(parseISO(ts), apiGranularity === "hour" ? "MMM d HH:mm" : "MMM d"),
       ...values,
     }));
-  }, [h0.data, h1.data, h2.data, h3.data, meter0, meter1, meter2, meter3, apiGranularity]);
+  }, [h0.data, h1, h2, h3, meter0, meter1, meter2, meter3, apiGranularity]);
 
   // KPI summaries from primary meter
   const kpis = useMemo(() => {
@@ -200,7 +200,7 @@ export default function Analytics() {
       </div>
 
       {/* Filter bar */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-lg bg-card shadow-card p-4">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
           <div className="min-w-[260px]">
             <DateRangePicker from={fromDate} to={toDate} onChange={(f, t) => { if (f && t) setDateRange([f.toISOString(), t.toISOString()]); else setDateRange(null); }} minDate={new Date("2006-12-01")} maxDate={new Date("2010-11-30")} />
@@ -222,7 +222,7 @@ export default function Analytics() {
       </div>
 
       {/* Time-series explorer */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-lg bg-card shadow-card p-5">
         <h3 className="text-section-heading text-foreground mb-4">Time-Series Explorer</h3>
         {isLoading && <LoadingOverlay message="Loading history..." />}
         {isError && <ErrorFallback title="History unavailable" message="Could not load data." onRetry={() => h0.refetch()} />}

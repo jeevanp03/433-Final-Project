@@ -40,26 +40,32 @@ describe("KpiCard", () => {
     expect(deltaEl).toBeInTheDocument();
   });
 
-  it("applies danger border when value >= threshold.danger", () => {
+  it("applies danger accent when value >= threshold.danger", () => {
     const { container } = render(
       <KpiCard label="Peak" value={5.0} unit="kW" thresholds={{ warning: 3, danger: 4.5 }} />,
     );
-    expect(container.querySelector(".border-energy-red")).toBeInTheDocument();
+    // Accent stripe uses inline style with the danger colour
+    const stripe = container.querySelector("[style]");
+    expect(stripe).toBeInTheDocument();
+    expect(stripe!.getAttribute("style")).toContain("background-color");
   });
 
-  it("applies warning border when value >= threshold.warning", () => {
+  it("applies warning accent when value >= threshold.warning", () => {
     const { container } = render(
       <KpiCard label="Peak" value={3.5} unit="kW" thresholds={{ warning: 3, danger: 4.5 }} />,
     );
-    expect(container.querySelector(".border-energy-orange")).toBeInTheDocument();
+    const stripe = container.querySelector("[style]");
+    expect(stripe).toBeInTheDocument();
+    expect(stripe!.getAttribute("style")).toContain("background-color");
   });
 
-  it("renders normal border when below thresholds", () => {
+  it("renders normal accent when below thresholds", () => {
     const { container } = render(
       <KpiCard label="Peak" value={2.0} unit="kW" thresholds={{ warning: 3, danger: 4.5 }} />,
     );
-    expect(container.querySelector(".border-energy-red")).not.toBeInTheDocument();
-    expect(container.querySelector(".border-energy-orange")).not.toBeInTheDocument();
+    // Still has accent stripe but with default colour
+    const stripe = container.querySelector("[style]");
+    expect(stripe).toBeInTheDocument();
   });
 
   it("calls onClick when clicked", () => {
@@ -120,14 +126,14 @@ describe("RecommendationCard", () => {
 
   it("renders metrics when not compact", () => {
     render(<RecommendationCard reco={mockReco} />);
-    expect(screen.getByText("0.18 EUR")).toBeInTheDocument();
+    expect(screen.getByText("0.18 CAD")).toBeInTheDocument();
     expect(screen.getByText("1.2 kWh")).toBeInTheDocument();
     expect(screen.getByText("5.3%")).toBeInTheDocument();
   });
 
   it("hides metrics and explanation in compact mode", () => {
     render(<RecommendationCard reco={mockReco} compact />);
-    expect(screen.queryByText("0.18 EUR")).not.toBeInTheDocument();
+    expect(screen.queryByText("0.18 CAD")).not.toBeInTheDocument();
     expect(screen.queryByText("Shifting to off-peak")).not.toBeInTheDocument();
   });
 

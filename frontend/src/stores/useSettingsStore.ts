@@ -33,6 +33,9 @@ export interface Appliance {
 export type ForecastHorizon = "24h" | "48h" | "7d";
 
 interface SettingsState {
+  // Onboarding
+  onboardingComplete: boolean;
+
   // Display
   theme: Theme;
   density: DensityLevel;
@@ -69,6 +72,7 @@ interface SettingsState {
   ollamaUrl: string;
 
   // Actions
+  completeOnboarding: () => void;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
   setDensity: (density: DensityLevel) => void;
@@ -142,13 +146,14 @@ const DEFAULT_APPLIANCES: Appliance[] = [
 ];
 
 const DEFAULTS: Omit<SettingsState, keyof SettingsActions> = {
+  onboardingComplete: false,
   theme: "light",
   density: "explore",
   defaultHorizon: "24h",
-  region: "france",
+  region: "canada",
   unitSystem: "metric",
-  currency: "EUR",
-  exchangeRate: 1.0,
+  currency: "CAD",
+  exchangeRate: 1.5,
   touSchedule: DEFAULT_TOU,
   householdType: "house",
   occupants: 4,
@@ -158,15 +163,16 @@ const DEFAULTS: Omit<SettingsState, keyof SettingsActions> = {
   peakAlertEnabled: true,
   budgetAlertEnabled: false,
   budgetLimit: 5.0,
-  llmModel: "llama3:8b",
+  llmModel: import.meta.env.VITE_OLLAMA_MODEL || "deepseek-r1:1.5b",
   narrationMode: "auto",
   llmTemperature: 0.3,
   maxToolCalls: 3,
-  ollamaUrl: "http://localhost:11434",
+  ollamaUrl: import.meta.env.VITE_OLLAMA_URL || "http://localhost:11434",
 };
 
 // Action keys for partialize
 type SettingsActions = {
+  completeOnboarding: () => void;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
   setDensity: (density: DensityLevel) => void;
@@ -199,6 +205,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       ...DEFAULTS,
 
+      completeOnboarding: () => set({ onboardingComplete: true }),
       toggleTheme: () =>
         set((state) => {
           const next = state.theme === "dark" ? "light" : "dark";

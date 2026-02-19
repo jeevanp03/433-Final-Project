@@ -20,7 +20,7 @@ import {
 describe("getApiErrorMessage", () => {
   function makeAxiosError(status: number): AxiosError {
     const err = new AxiosError("Request failed");
-    err.response = { status, data: {}, statusText: "", headers: {}, config: {} as any } as AxiosResponse;
+    err.response = { status, data: {}, statusText: "", headers: {}, config: {} as AxiosResponse["config"] } as AxiosResponse;
     return err;
   }
 

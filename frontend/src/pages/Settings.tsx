@@ -16,7 +16,6 @@ import {
   RotateCcw,
   Download,
   Upload,
-  Save,
 } from "lucide-react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
@@ -50,7 +49,7 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="rounded-lg bg-card shadow-card">
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-3 w-full px-5 py-4 text-left cursor-pointer"
@@ -255,19 +254,6 @@ const CLIMATE_ZONES = [
   { value: "temperate", label: "Temperate" },
   { value: "continental", label: "Continental" },
   { value: "polar", label: "Polar" },
-];
-
-const ICON_OPTIONS = [
-  "utensils",
-  "shirt",
-  "wind",
-  "plug-zap",
-  "flame",
-  "snowflake",
-  "tv",
-  "monitor",
-  "zap",
-  "battery",
 ];
 
 // ---------------------------------------------------------------------------
@@ -757,7 +743,6 @@ function LlmSection() {
     llmTemperature,
     maxToolCalls,
     ollamaUrl,
-    setLlmModel,
     setNarrationMode,
     setLlmTemperature,
     setMaxToolCalls,
@@ -770,19 +755,10 @@ function LlmSection() {
         <TextInput value={ollamaUrl} onChange={setOllamaUrl} />
       </Field>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Model" hint="Must be pulled in Ollama first">
-          <Select
-            value={llmModel}
-            onChange={setLlmModel}
-            options={[
-              { value: "llama3:8b", label: "Llama 3 8B" },
-              { value: "llama3:70b", label: "Llama 3 70B" },
-              { value: "deepseek-r1:1.5b", label: "DeepSeek-R1 1.5B" },
-              { value: "deepseek-r1:7b", label: "DeepSeek-R1 7B" },
-              { value: "mistral:7b", label: "Mistral 7B" },
-              { value: "qwen2:7b", label: "Qwen2 7B" },
-            ]}
-          />
+        <Field label="Model" hint="Set via VITE_OLLAMA_MODEL in .env">
+          <div className="w-full rounded-lg border border-border bg-muted/50 px-3 py-2 text-body text-foreground">
+            {llmModel}
+          </div>
         </Field>
         <Field label="Narration mode">
           <SegmentedControl

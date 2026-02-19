@@ -43,7 +43,7 @@ export default function NarrationPanel({ page, filters, autoLoad = true }: Narra
           <span className="text-xs font-medium text-muted-foreground">AI Insight</span>
         </div>
         <p className="text-sm text-muted-foreground">
-          Connect a local LLM via Ollama for AI-powered insights about your energy usage.
+          Could not reach Ollama. Make sure <code className="text-xs bg-muted px-1 py-0.5 rounded">ollama serve</code> is running, then click Retry.
         </p>
         <button
           onClick={() => refetch()}
@@ -56,7 +56,7 @@ export default function NarrationPanel({ page, filters, autoLoad = true }: Narra
     );
   }
 
-  const narrative = typeof data === "object" && "text" in data ? data.text : String(data);
+  const narrative = data?.narrative ?? String(data);
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">

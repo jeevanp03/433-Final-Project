@@ -77,7 +77,7 @@ export default function DateRangePicker({ from, to, onChange, minDate, maxDate }
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-40 bg-card rounded-xl border border-border shadow-xl p-4 w-[320px]">
+        <div className="absolute top-full mt-1 left-0 z-40 bg-card rounded-lg shadow-panel p-4 w-[320px]">
           {/* Presets */}
           <div className="flex flex-wrap gap-1.5 mb-3">
             {presets.map((p) => (

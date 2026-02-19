@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { useChatStore } from "@/stores/useChatStore";
 
 // ---------------------------------------------------------------------------
@@ -150,7 +150,7 @@ describe("Tool call lifecycle", () => {
     }
 
     expect(pendingToolCalls[0].status).toBe("done");
-    expect((pendingToolCalls[0].result as any).peak).toBe(4.2);
+    expect((pendingToolCalls[0].result as Record<string, unknown>).peak).toBe(4.2);
   });
 
   it("handles tool call error", () => {

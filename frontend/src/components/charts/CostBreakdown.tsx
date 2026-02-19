@@ -42,7 +42,7 @@ export default function CostBreakdown({ data, height = 300, currency = "EUR" }: 
             borderRadius: CHART_DEFAULTS.tooltipRadius,
             fontSize: 12,
           }}
-          formatter={(value: number) => [`${value.toFixed(2)} ${currency}`, undefined]}
+          formatter={(value) => [`${Number(value).toFixed(2)} ${currency}`, undefined]}
         />
         <Legend iconType="square" iconSize={10} wrapperStyle={{ fontSize: 12 }} />
         <Bar dataKey="offPeak" name="Off-Peak" stackId="cost" fill={COLOURS.green} radius={[0, 0, 0, 0]} />

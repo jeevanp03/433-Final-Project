@@ -18,7 +18,7 @@ export default function OutcomeCard({
   const delta = baseline !== undefined ? dist.mean - baseline : undefined;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-lg bg-card shadow-card p-4">
       <p className="text-small text-muted-foreground mb-2">{label}</p>
 
       <div className="flex items-baseline gap-1.5 mb-1">

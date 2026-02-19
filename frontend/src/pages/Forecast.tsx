@@ -30,6 +30,7 @@ import { COLOURS, CHART_DEFAULTS } from "@/theme/chartTheme";
 import ErrorFallback from "@/components/ui/ErrorFallback";
 import LoadingOverlay from "@/components/ui/LoadingOverlay";
 
+import type { ForecastPoint } from "@/types/api";
 import { useForecast, useBacktest, useExplanation, useMetrics } from "@/api/hooks";
 import { useForecastStore, type Horizon } from "@/stores/useForecastStore";
 
@@ -114,14 +115,14 @@ function MetricsTable({ metrics, modelName }: { metrics: Record<string, number> 
 function ResidualChart({ points }: { points: { horizon: number; residual: number }[] }) {
   const data = points.map((p) => ({ horizon: `h${p.horizon}`, residual: p.residual }));
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-lg bg-card shadow-card p-4">
       <h3 className="text-card-title text-foreground mb-3">Residuals by Horizon</h3>
       <ResponsiveContainer width="100%" height={180}>
         <BarChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid strokeDasharray={CHART_DEFAULTS.gridStrokeDasharray} stroke={CHART_DEFAULTS.axisStroke} opacity={CHART_DEFAULTS.gridOpacity} />
           <XAxis dataKey="horizon" tick={{ fontSize: 10 }} stroke={CHART_DEFAULTS.axisStroke} />
           <YAxis tick={{ fontSize: 10 }} stroke={CHART_DEFAULTS.axisStroke} label={{ value: "kW", angle: -90, position: "insideLeft", style: { fontSize: 10 } }} />
-          <Tooltip contentStyle={{ backgroundColor: CHART_DEFAULTS.tooltipBg, border: `1px solid ${CHART_DEFAULTS.tooltipBorder}`, borderRadius: CHART_DEFAULTS.tooltipRadius, fontSize: 12 }} formatter={(value: number) => [`${value.toFixed(3)} kW`, "Residual"]} />
+          <Tooltip contentStyle={{ backgroundColor: CHART_DEFAULTS.tooltipBg, border: `1px solid ${CHART_DEFAULTS.tooltipBorder}`, borderRadius: CHART_DEFAULTS.tooltipRadius, fontSize: 12 }} formatter={(value) => [`${Number(value).toFixed(3)} kW`, "Residual"]} />
           <Bar dataKey="residual" radius={[2, 2, 0, 0]}>
             {data.map((entry, idx) => (
               <Cell key={idx} fill={entry.residual >= 0 ? COLOURS.red : COLOURS.blue} opacity={0.7} />
@@ -150,7 +151,10 @@ export default function Forecast() {
   const primaryForecast = useForecast({ model: primaryModel, horizon: horizonHours, origin, confidence });
 
   // Comparison forecasts (always call hooks, but only use when comparison mode is on)
-  const comparisonModels = comparisonMode ? selectedModels.filter((m) => m !== primaryModel) : [];
+  const comparisonModels = useMemo(
+    () => comparisonMode ? selectedModels.filter((m) => m !== primaryModel) : [],
+    [comparisonMode, selectedModels, primaryModel],
+  );
   const compForecast1 = useForecast(comparisonModels.length >= 1 ? { model: comparisonModels[0], horizon: horizonHours, origin, confidence } : { model: primaryModel, horizon: horizonHours, origin, confidence });
   const compForecast2 = useForecast(comparisonModels.length >= 2 ? { model: comparisonModels[1], horizon: horizonHours, origin, confidence } : { model: primaryModel, horizon: horizonHours, origin, confidence });
 
@@ -164,20 +168,23 @@ export default function Forecast() {
   const metricsQuery = useMetrics("test");
 
   // Computed
+  const comp1Data = compForecast1.data;
+  const comp2Data = compForecast2.data;
   const comparisonPoints = useMemo(() => {
     if (!comparisonMode || comparisonModels.length === 0) return undefined;
-    const result: { model: string; points: typeof primaryForecast.data extends { points: infer P } ? P : never }[] = [];
-    if (comparisonModels.length >= 1 && compForecast1.data && comparisonModels[0]) result.push({ model: comparisonModels[0], points: compForecast1.data.points });
-    if (comparisonModels.length >= 2 && compForecast2.data && comparisonModels[1]) result.push({ model: comparisonModels[1], points: compForecast2.data.points });
+    const result: { model: string; points: ForecastPoint[] }[] = [];
+    if (comparisonModels.length >= 1 && comp1Data && comparisonModels[0]) result.push({ model: comparisonModels[0], points: comp1Data.points });
+    if (comparisonModels.length >= 2 && comp2Data && comparisonModels[1]) result.push({ model: comparisonModels[1], points: comp2Data.points });
     return result.length > 0 ? result : undefined;
-  }, [comparisonMode, comparisonModels, compForecast1.data, compForecast2.data]);
+  }, [comparisonMode, comparisonModels, comp1Data, comp2Data]);
 
+  const forecastOrigin = primaryForecast.data?.origin;
   const forecastOriginDisplay = useMemo(() => {
-    if (primaryForecast.data?.origin) {
-      try { return format(parseISO(primaryForecast.data.origin), "MMM d, yyyy HH:mm"); } catch { return primaryForecast.data.origin; }
+    if (forecastOrigin) {
+      try { return format(parseISO(forecastOrigin), "MMM d, yyyy HH:mm"); } catch { return forecastOrigin; }
     }
     return "Latest available";
-  }, [primaryForecast.data?.origin]);
+  }, [forecastOrigin]);
 
   return (
     <div className="space-y-6">
@@ -193,7 +200,7 @@ export default function Forecast() {
       </div>
 
       {/* Control bar */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-lg bg-card shadow-card p-4">
         <div className="flex flex-col lg:flex-row lg:items-end gap-4">
           <div className="space-y-1.5">
             <label className="text-small text-muted-foreground">Horizon</label>
@@ -213,7 +220,7 @@ export default function Forecast() {
       <div className="flex flex-col lg:flex-row gap-6">
         {comparisonMode && (
           <div className="lg:w-[200px] shrink-0">
-            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="rounded-lg bg-card shadow-card p-4 space-y-3">
               <h3 className="text-card-title text-foreground">Models</h3>
               <ModelSelector multi />
             </div>
@@ -222,7 +229,7 @@ export default function Forecast() {
 
         {/* Main chart */}
         <div className="flex-1 min-w-0 space-y-4">
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-lg bg-card shadow-card p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-energy-blue" />
@@ -264,7 +271,7 @@ export default function Forecast() {
               {backtest.data && backtest.data.points.length > 0 && (
                 <div className="space-y-4">
                   <ResidualChart points={backtest.data.points} />
-                  <div className="rounded-xl border border-border bg-card p-4">
+                  <div className="rounded-lg bg-card shadow-card p-4">
                     <h3 className="text-card-title text-foreground mb-3">Backtest Metrics</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {Object.entries(backtest.data.metrics).map(([key, value]) => (
@@ -278,7 +285,7 @@ export default function Forecast() {
                 </div>
               )}
               {backtest.data && backtest.data.points.length === 0 && (
-                <div className="rounded-xl border border-border bg-card p-6 text-center">
+                <div className="rounded-lg bg-card shadow-card p-6 text-center">
                   <Info className="w-5 h-5 text-muted-foreground mx-auto mb-2" />
                   <p className="text-small text-muted-foreground">No backtest data for this origin. Try a date within Jan 2009 &ndash; Nov 2010.</p>
                 </div>
@@ -302,7 +309,7 @@ export default function Forecast() {
           </button>
 
           {/* Model accuracy */}
-          <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+          <div className="rounded-lg bg-card shadow-card p-4 space-y-4">
             <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-energy-teal" /><h3 className="text-card-title text-foreground">Model Accuracy</h3></div>
             {metricsQuery.isLoading && <LoadingOverlay message="Loading metrics..." />}
             {metricsQuery.isError && <p className="text-small text-muted-foreground">Metrics unavailable</p>}
@@ -314,7 +321,7 @@ export default function Forecast() {
           </div>
 
           {/* SHAP */}
-          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <div className="rounded-lg bg-card shadow-card p-4 space-y-3">
             <div className="flex items-center gap-2"><Info className="w-4 h-4 text-energy-orange" /><h3 className="text-card-title text-foreground">Feature Attributions</h3></div>
             {selectedHour !== null ? (
               <>
@@ -344,7 +351,7 @@ export default function Forecast() {
 
           {/* Forecast summary */}
           {primaryForecast.data && (
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-lg bg-card shadow-card p-4">
               <h3 className="text-card-title text-foreground mb-2">Forecast Summary</h3>
               <div className="space-y-2">
                 {[

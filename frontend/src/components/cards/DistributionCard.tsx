@@ -36,7 +36,7 @@ export default function DistributionCard({
   const deltaPct = baselineMean && baselineMean !== 0 ? ((delta ?? 0) / baselineMean) * 100 : undefined;
 
   return (
-    <div className={`rounded-xl border border-border bg-card p-4 ${className}`}>
+    <div className={`rounded-lg bg-card shadow-card p-4 ${className}`}>
       <p className="text-small text-muted-foreground mb-2">{label}</p>
 
       {bins && <MiniHistogram bins={bins} />}

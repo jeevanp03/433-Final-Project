@@ -78,9 +78,14 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     set((s) => ({ activeBlocks: s.activeBlocks.filter((b) => b.id !== id) })),
   updateBlock: (id, params) =>
     set((s) => ({
-      activeBlocks: s.activeBlocks.map((b) =>
-        b.id === id ? { ...b, params: { ...b.params, ...params } } : b,
-      ),
+      activeBlocks: s.activeBlocks.map((b) => {
+        if (b.id !== id) return b;
+        const merged = { ...b.params };
+        for (const [k, v] of Object.entries(params)) {
+          if (v !== undefined) merged[k] = v;
+        }
+        return { ...b, params: merged };
+      }),
     })),
   clearBlocks: () => set({ activeBlocks: [], results: null }),
   saveScenario: (name) => {

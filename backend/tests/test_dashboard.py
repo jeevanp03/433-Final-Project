@@ -1,26 +1,14 @@
 """
 tests.test_dashboard
 =====================
-Smoke tests for dashboard components and pricing utilities.
-
-Dashboard components now live in ``frontend/components/``. Import tests add the
-frontend directory to sys.path so they can verify importability.  Pricing utility
-tests import from ``src.prescriptive.pricing`` which stays in the backend.
+Pricing utility tests used by dashboard components.
 """
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import pytest
-
-# Add frontend/ to sys.path so component imports resolve
-_FRONTEND_DIR = str(Path(__file__).resolve().parents[2] / "frontend")
-if _FRONTEND_DIR not in sys.path:
-    sys.path.insert(0, _FRONTEND_DIR)
 
 
 # ---------------------------------------------------------------------------
@@ -58,36 +46,6 @@ def minimal_features_df():
         index=idx,
     )
     return df
-
-
-# ---------------------------------------------------------------------------
-# Import smoke tests
-# ---------------------------------------------------------------------------
-
-class TestComponentImports:
-    """Verify all dashboard components are importable without side effects."""
-
-    def test_import_status_bar(self) -> None:
-        from components import status_bar  # noqa: F401
-
-    def test_import_forecast_panel(self) -> None:
-        from components import forecast_panel  # noqa: F401
-
-    def test_import_history(self) -> None:
-        from components import history  # noqa: F401
-
-    def test_import_recommendations(self) -> None:
-        from components import recommendations  # noqa: F401
-
-    def test_import_explainer(self) -> None:
-        from components import explainer  # noqa: F401
-
-    def test_import_app(self) -> None:
-        pytest.importorskip("streamlit")
-        import importlib
-        # app.py is in frontend/ — check it's importable
-        spec = importlib.util.find_spec("app")
-        assert spec is not None, "frontend/app.py module not found on sys.path."
 
 
 # ---------------------------------------------------------------------------

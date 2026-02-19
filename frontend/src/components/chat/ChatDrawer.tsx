@@ -19,7 +19,7 @@ const DEFAULT_SUGGESTIONS = [
 
 export default function ChatDrawer() {
   const { messages, drawerOpen, isStreaming, streamingContent, error } = useChatStore();
-  const { sendMessage, cancel } = useChatStream();
+  const { sendMessage } = useChatStream();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom on new messages or streaming

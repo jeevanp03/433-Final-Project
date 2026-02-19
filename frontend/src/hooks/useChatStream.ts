@@ -24,7 +24,6 @@ export function useChatStream() {
   const {
     messages,
     addMessage,
-    updateMessage,
     appendStreamChunk,
     finaliseStream,
     setIsStreaming,
@@ -66,7 +65,6 @@ export function useChatStream() {
 
         const decoder = new TextDecoder();
         let buffer = "";
-        let assistantId: string | null = null;
         const pendingToolCalls: ToolCall[] = [];
 
         while (true) {
@@ -149,7 +147,7 @@ export function useChatStream() {
         });
       }
     },
-    [messages, addMessage, updateMessage, appendStreamChunk, finaliseStream, setIsStreaming, setError],
+    [messages, addMessage, appendStreamChunk, setIsStreaming, setError],
   );
 
   const cancel = useCallback(() => {

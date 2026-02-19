@@ -1,5 +1,6 @@
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ZAxis } from "recharts";
 import { COLOURS, CHART_DEFAULTS, CHART_COLOUR_SEQUENCE } from "@/theme/chartTheme";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 interface ScenarioPoint {
   name: string;
@@ -15,6 +16,7 @@ interface ParetoScatterProps {
 }
 
 export default function ParetoScatter({ scenarios, height = 300 }: ParetoScatterProps) {
+  const currency = useSettingsStore((s) => s.currency);
   const data = scenarios.map((s, i) => ({
     ...s,
     fill: CHART_COLOUR_SEQUENCE[i % CHART_COLOUR_SEQUENCE.length],
@@ -34,7 +36,7 @@ export default function ParetoScatter({ scenarios, height = 300 }: ParetoScatter
           tick={{ fontSize: CHART_DEFAULTS.axisTickSize }}
           stroke={CHART_DEFAULTS.axisStroke}
           name="Cost"
-          label={{ value: "Daily Cost (EUR)", position: "insideBottom", offset: -4, style: { fontSize: 11 } }}
+          label={{ value: `Daily Cost (${currency})`, position: "insideBottom", offset: -4, style: { fontSize: 11 } }}
         />
         <YAxis
           dataKey="peak"
@@ -52,7 +54,7 @@ export default function ParetoScatter({ scenarios, height = 300 }: ParetoScatter
             borderRadius: CHART_DEFAULTS.tooltipRadius,
             fontSize: 12,
           }}
-          formatter={(val: number, name: string) => [val.toFixed(2), name]}
+          formatter={(val, name) => [Number(val).toFixed(2), String(name)]}
           labelFormatter={(_, payload) => payload[0]?.payload?.name ?? ""}
         />
         <Scatter data={data} fill={COLOURS.blue} />

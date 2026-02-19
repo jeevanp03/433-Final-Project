@@ -1,8 +1,9 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AppLayout from "@/components/layout/AppLayout";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Forecast = lazy(() => import("@/pages/Forecast"));
@@ -10,6 +11,7 @@ const Simulate = lazy(() => import("@/pages/Simulate"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
 const Actions = lazy(() => import("@/pages/Actions"));
 const Settings = lazy(() => import("@/pages/Settings"));
+const Onboarding = lazy(() => import("@/pages/Onboarding"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,13 +32,35 @@ function PageLoader() {
   );
 }
 
+function RequireOnboarding({ children }: { children: React.ReactNode }) {
+  const onboardingComplete = useSettingsStore((s) => s.onboardingComplete);
+  if (!onboardingComplete) {
+    return <Navigate to="/welcome" replace />;
+  }
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <ErrorBoundary level="app">
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <Routes>
-            <Route element={<AppLayout />}>
+            <Route
+              path="welcome"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <Onboarding />
+                </Suspense>
+              }
+            />
+            <Route
+              element={
+                <RequireOnboarding>
+                  <AppLayout />
+                </RequireOnboarding>
+              }
+            >
               <Route
                 index
                 element={

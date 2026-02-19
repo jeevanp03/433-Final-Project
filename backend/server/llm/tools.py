@@ -10,7 +10,10 @@ Each tool has:
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
+
+_DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "deepseek-r1:1.5b")
 
 import numpy as np
 import pandas as pd
@@ -295,7 +298,7 @@ DEEPSEEK_TOOL_NAMES = {
 }
 
 
-def get_tool_definitions(model: str = "llama3:8b") -> list[dict[str, Any]]:
+def get_tool_definitions(model: str = _DEFAULT_MODEL) -> list[dict[str, Any]]:
     """Return tool definitions filtered for the active model."""
     if "deepseek" in model.lower():
         return [t for t in TOOL_DEFINITIONS if t["function"]["name"] in DEEPSEEK_TOOL_NAMES]

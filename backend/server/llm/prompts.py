@@ -10,9 +10,13 @@ The system prompt is assembled dynamically from four blocks:
 
 from __future__ import annotations
 
+import os
+
 from server.llm.context import build_context_block
 from server.llm.memory import format_memory_block
 from server.llm.tools import get_deepseek_tool_text, get_tool_definitions
+
+_DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "deepseek-r1:1.5b")
 
 # ---------------------------------------------------------------------------
 # 1. Persona block (~300 tokens, fixed, never trimmed)
@@ -59,7 +63,7 @@ SAFETY:
 def build_system_prompt(
     context: dict | None = None,
     messages: list[dict] | None = None,
-    model: str = "llama3:8b",
+    model: str = _DEFAULT_MODEL,
 ) -> str:
     """Assemble the full system prompt from all blocks.
 

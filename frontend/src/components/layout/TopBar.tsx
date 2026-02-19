@@ -20,29 +20,31 @@ export default function TopBar() {
   const showBreadcrumb = location.pathname !== "/";
 
   return (
-    <header className="border-b border-border bg-card px-4 md:px-6" role="banner">
-      <div className="flex items-center justify-between h-14">
-        <h1 className="text-section-heading text-foreground truncate">{title}</h1>
+    <header className="border-b border-border bg-card/80 backdrop-blur-sm px-4 md:px-6" role="banner">
+      <div className="flex items-center justify-between h-12">
+        <div className="flex items-center gap-3">
+          <h1 className="text-[14px] font-semibold text-foreground tracking-tight">{title}</h1>
+        </div>
 
-        <div className="flex items-center gap-2 md:gap-3">
+        <div className="flex items-center gap-1.5">
           <div className="hidden sm:block">
             <DensityToggle />
           </div>
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+            className="p-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
             {theme === "dark" ? (
-              <Sun className="w-5 h-5" />
+              <Sun className="w-4 h-4" />
             ) : (
-              <Moon className="w-5 h-5" />
+              <Moon className="w-4 h-4" />
             )}
           </button>
         </div>
       </div>
       {showBreadcrumb && (
-        <div className="pb-2 hidden md:block">
+        <div className="pb-1.5 hidden md:block">
           <Breadcrumb />
         </div>
       )}

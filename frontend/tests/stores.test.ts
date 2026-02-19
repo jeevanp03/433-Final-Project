@@ -274,11 +274,11 @@ describe("useSettingsStore", () => {
   it("has correct defaults", () => {
     const s = useSettingsStore.getState();
     expect(s.theme).toBe("light");
-    expect(s.region).toBe("france");
-    expect(s.currency).toBe("EUR");
+    expect(s.region).toBe("canada");
+    expect(s.currency).toBe("CAD");
     expect(s.occupants).toBe(4);
     expect(s.floorArea).toBe(120);
-    expect(s.llmModel).toBe("llama3:8b");
+    expect(s.llmModel).toBe(import.meta.env.VITE_OLLAMA_MODEL || "deepseek-r1:1.5b");
     expect(s.narrationMode).toBe("auto");
     expect(s.appliances).toHaveLength(4);
   });
@@ -323,7 +323,7 @@ describe("useSettingsStore", () => {
     useSettingsStore.getState().setCurrency("USD");
     useSettingsStore.getState().setOccupants(2);
     useSettingsStore.getState().resetAll();
-    expect(useSettingsStore.getState().currency).toBe("EUR");
+    expect(useSettingsStore.getState().currency).toBe("CAD");
     expect(useSettingsStore.getState().occupants).toBe(4);
   });
 

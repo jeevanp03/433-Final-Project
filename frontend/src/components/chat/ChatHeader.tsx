@@ -1,12 +1,10 @@
 import { X, Trash2, Bot } from "lucide-react";
 import { useChatStore } from "@/stores/useChatStore";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
-interface ChatHeaderProps {
-  modelName?: string;
-}
-
-export default function ChatHeader({ modelName = "Llama 3 8B" }: ChatHeaderProps) {
+export default function ChatHeader() {
   const { setDrawerOpen, clearMessages } = useChatStore();
+  const llmModel = useSettingsStore((s) => s.llmModel);
 
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
@@ -14,7 +12,7 @@ export default function ChatHeader({ modelName = "Llama 3 8B" }: ChatHeaderProps
         <Bot className="w-5 h-5 text-energy-teal" />
         <span className="font-semibold text-sm text-foreground">Energy Assistant</span>
         <span className="text-[10px] font-mono bg-energy-teal/10 text-energy-teal px-1.5 py-0.5 rounded">
-          {modelName}
+          {llmModel}
         </span>
       </div>
       <div className="flex items-center gap-1">

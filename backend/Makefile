@@ -23,7 +23,7 @@
 # resolve correctly.  Activate your venv before running make targets.
 # =============================================================================
 
-.PHONY: install ingest clean-data features train evaluate dashboard test all help \
+.PHONY: install ingest clean-data features train evaluate dashboard dev test all help \
        frontend-install frontend-dev frontend-build frontend-test server
 
 # Default target
@@ -54,11 +54,11 @@ help:
 	@echo "  test              Run pytest test suite with coverage report"
 	@echo "  all               Full pipeline: clean-data → features → train → evaluate → test"
 	@echo ""
+	@echo "  dev               Launch backend + frontend in one terminal (Ctrl+C stops both)"
 	@echo "  frontend-install  Install React frontend dependencies (npm install)"
 	@echo "  frontend-dev      Start React dev server on port 5173"
 	@echo "  frontend-build    Production build of React frontend"
 	@echo "  frontend-test     Run Vitest frontend tests"
-	@echo "  server            Start FastAPI backend server on port 8000"
 	@echo ""
 	@echo "  help              Show this help message"
 	@echo ""
@@ -137,17 +137,19 @@ evaluate: train
 
 
 # -----------------------------------------------------------------------------
-# dashboard: Launch both FastAPI server and React dev server
+# dev / dashboard: Launch FastAPI + React dev server in one terminal
+# Ctrl+C stops both. Ollama must be started separately if you want LLM chat.
 # Depends on: all pipeline artefacts (train + evaluate recommended)
 # FastAPI on :8000, React dev on :5173 (proxies /api to :8000)
 # -----------------------------------------------------------------------------
-dashboard:
-	@echo "--- Launching FastAPI server + React dev server ---"
-	@echo "Start in two terminals:"
-	@echo "  Terminal 1 (backend): make server"
-	@echo "  Terminal 2 (frontend): make frontend-dev"
+dev dashboard:
+	@echo "--- Launching FastAPI (port $(API_PORT)) + React dev (port 5173) ---"
+	@echo "    Ctrl+C to stop both."
 	@echo ""
-	@echo "Or use: make server & make frontend-dev"
+	@trap 'kill 0' EXIT; \
+	$(PYTHON) -m uvicorn server.main:app --reload --port $(API_PORT) & \
+	cd $(FRONTEND_DIR) && npm run dev & \
+	wait
 
 
 # -----------------------------------------------------------------------------

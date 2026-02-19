@@ -12,6 +12,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+import { useSettingsStore } from "@/stores/useSettingsStore";
 import ScenarioBuilder from "@/components/controls/ScenarioBuilder";
 import FanChart from "@/components/charts/FanChart";
 import TornadoChart from "@/components/charts/TornadoChart";
@@ -108,6 +109,7 @@ export default function Simulate() {
     setMcRuns, setMcSeed, setResidualMethod, setHorizon, setPriceScenario, setResults, setIsRunning,
   } = useSimulationStore();
 
+  const currency = useSettingsStore((s) => s.currency);
   const simulationMutation = useSimulation();
   const sensitivityMutation = useSensitivity();
   const { data: baselineData } = useForecast({ model: "xgboost", horizon });
@@ -170,8 +172,11 @@ export default function Simulate() {
   const paretoScenarios = useMemo(() => {
     const points: { name: string; cost: number; peak: number }[] = [];
     if (results) points.push({ name: "Current", cost: results.dailyCost.mean, peak: results.peakKw.mean });
-    savedScenarios.filter((s) => compareIds.has(s.id)).forEach((s) => {
-      points.push({ name: s.name, cost: results ? results.dailyCost.mean * (0.8 + Math.random() * 0.4) : 0, peak: results ? results.peakKw.mean * (0.85 + Math.random() * 0.3) : 0 });
+    savedScenarios.filter((s) => compareIds.has(s.id)).forEach((s, i) => {
+      // Deterministic variation per scenario index to avoid impure Math.random in render
+      const costScale = 0.8 + ((i * 7 + 3) % 10) * 0.04;
+      const peakScale = 0.85 + ((i * 5 + 2) % 10) * 0.03;
+      points.push({ name: s.name, cost: results ? results.dailyCost.mean * costScale : 0, peak: results ? results.peakKw.mean * peakScale : 0 });
     });
     return points;
   }, [savedScenarios, compareIds, results]);
@@ -200,12 +205,12 @@ export default function Simulate() {
 
           {activeTab === "build" ? (
             <>
-              <div className="rounded-xl border border-border bg-card p-4">
+              <div className="rounded-lg bg-card shadow-card p-4">
                 <SectionHeading icon={<FlaskConical className="w-4 h-4 text-energy-teal" />} title="Scenario Blocks" subtitle="Add modifications to the baseline forecast" />
                 <ScenarioBuilder blocks={builderBlocks} onChange={handleBlocksChange} />
               </div>
 
-              <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+              <div className="rounded-lg bg-card shadow-card p-4 space-y-4">
                 <SectionHeading icon={<SlidersHorizontal className="w-4 h-4 text-energy-teal" />} title="Simulation Controls" />
                 <div className="space-y-1.5">
                   <span className="text-small text-muted-foreground">Forecast Horizon</span>
@@ -251,7 +256,7 @@ export default function Simulate() {
               )}
             </>
           ) : (
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-lg bg-card shadow-card p-4">
               <SectionHeading icon={<Layers className="w-4 h-4 text-energy-teal" />} title="Saved Scenarios" subtitle="Select 2-4 to compare side-by-side" />
               {savedScenarios.length === 0 ? (
                 <p className="text-small text-muted-foreground py-4 text-center">No saved scenarios yet.</p>
@@ -300,7 +305,7 @@ export default function Simulate() {
 
           {results && !isRunning && (
             <>
-              <div className="rounded-xl border border-border bg-card p-5">
+              <div className="rounded-lg bg-card shadow-card p-5">
                 <div className="flex items-center justify-between mb-4">
                   <SectionHeading icon={<BarChart3 className="w-4 h-4 text-energy-teal" />} title="Simulated Forecast Distribution" subtitle={`${mcRuns} paths \u2014 ${horizon}h horizon`} />
                   <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
@@ -315,11 +320,11 @@ export default function Simulate() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <OutcomeCard label="Daily Energy" dist={results.dailyKwh} unit="kWh" baseline={baselineData ? baselineData.points.reduce((s, p) => s + p.forecast, 0) : undefined} colour={COLOURS.blue} />
                 <OutcomeCard label="Peak Demand" dist={results.peakKw} unit="kW" baseline={baselineData ? Math.max(...baselineData.points.map((p) => p.forecast)) : undefined} colour={COLOURS.orange} />
-                <OutcomeCard label="Daily Cost" dist={results.dailyCost} unit="EUR" colour={COLOURS.green} />
+                <OutcomeCard label="Daily Cost" dist={results.dailyCost} unit={currency} colour={COLOURS.green} />
                 <OutcomeCard label="Peak-Risk Hours" dist={results.peakRiskHours} unit="h" colour={COLOURS.red} />
               </div>
 
-              <div className="rounded-xl border border-border bg-card p-5">
+              <div className="rounded-lg bg-card shadow-card p-5">
                 <div className="flex items-center justify-between mb-4">
                   <SectionHeading icon={<TrendingUp className="w-4 h-4 text-energy-teal" />} title="Sensitivity Analysis" subtitle="How much does each parameter swing the outcome?" />
                   <button onClick={handleRunSensitivity} disabled={sensitivityMutation.isPending} className="flex items-center gap-2 px-3 py-1.5 text-small font-medium rounded-lg border border-border bg-card text-foreground hover:bg-muted/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer">

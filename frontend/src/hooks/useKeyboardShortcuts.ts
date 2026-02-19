@@ -16,7 +16,7 @@ export function useKeyboardShortcuts() {
   const navigate = useNavigate();
   const location = useLocation();
   const pendingG = useRef(false);
-  const gTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const gTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const setDensity = useUIStore((s) => s.setDensity);

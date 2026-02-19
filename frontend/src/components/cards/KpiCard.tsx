@@ -60,11 +60,9 @@ export default function KpiCard({
 }: KpiCardProps) {
   const animated = useAnimatedCounter(value);
 
-  let borderColour = "border-border";
-  if (thresholds) {
-    if (value >= thresholds.danger) borderColour = "border-energy-red";
-    else if (value >= thresholds.warning) borderColour = "border-energy-orange";
-  }
+  const isWarning = thresholds && value >= thresholds.warning && value < thresholds.danger;
+  const isDanger = thresholds && value >= thresholds.danger;
+  const accentColor = isDanger ? "var(--color-energy-red)" : isWarning ? "var(--color-energy-orange)" : colour;
 
   const DeltaIcon = delta === undefined || delta === 0 ? Minus : delta > 0 ? TrendingUp : TrendingDown;
   const deltaColor = delta === undefined || delta === 0
@@ -75,9 +73,9 @@ export default function KpiCard({
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-border bg-card p-4 animate-pulse">
+      <div className="rounded-lg bg-card shadow-card p-4 animate-pulse">
         <div className="h-3 w-20 bg-muted rounded mb-3" />
-        <div className="h-8 w-28 bg-muted rounded mb-2" />
+        <div className="h-7 w-24 bg-muted rounded mb-2" />
         <div className="h-2 w-16 bg-muted rounded" />
       </div>
     );
@@ -87,32 +85,36 @@ export default function KpiCard({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className={`rounded-xl border ${borderColour} bg-card p-4 text-left transition-all w-full ${
-        onClick ? "hover:shadow-md hover:border-energy-blue/40 cursor-pointer" : ""
+      className={`relative overflow-hidden rounded-lg bg-card shadow-card p-4 text-left transition-all w-full ${
+        onClick ? "hover:shadow-card-hover cursor-pointer" : ""
       }`}
     >
+      {/* Left accent stripe */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[3px]"
+        style={{ backgroundColor: accentColor }}
+      />
+
       <div className="flex items-center justify-between mb-2">
-        <span className="text-small text-muted-foreground">{label}</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
         {icon && (
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colour}15` }}>
-            <span style={{ color: colour }}>{icon}</span>
-          </div>
+          <span className="opacity-40" style={{ color: accentColor }}>{icon}</span>
         )}
       </div>
 
-      <div className="flex items-baseline gap-1.5 mb-1">
+      <div className="flex items-baseline gap-1.5">
         <span className="text-kpi text-foreground">{formatValue(animated)}</span>
-        <span className="text-small text-muted-foreground">{unit}</span>
+        <span className="text-[11px] text-muted-foreground font-medium">{unit}</span>
       </div>
 
       {delta !== undefined && (
-        <div className={`flex items-center gap-1 ${deltaColor}`}>
+        <div className={`flex items-center gap-1 mt-1.5 ${deltaColor}`}>
           <DeltaIcon className="w-3 h-3" />
-          <span className="text-small font-medium">
+          <span className="text-[11px] font-medium">
             {delta > 0 ? "+" : ""}{delta.toFixed(1)}%
           </span>
           {deltaLabel && (
-            <span className="text-small text-muted-foreground ml-1">{deltaLabel}</span>
+            <span className="text-[11px] text-muted-foreground ml-0.5">{deltaLabel}</span>
           )}
         </div>
       )}

@@ -1,5 +1,5 @@
 import { useLocation, Link } from "react-router-dom";
-import { ChevronRight, Home } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 const routeLabels: Record<string, string> = {
   "": "Dashboard",
@@ -17,9 +17,9 @@ export default function Breadcrumb() {
   if (segments.length === 0) return null;
 
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-small text-muted-foreground mb-4">
+    <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-[11px] text-muted-foreground">
       <Link to="/" className="hover:text-foreground transition-colors">
-        <Home className="w-3.5 h-3.5" />
+        Dashboard
       </Link>
       {segments.map((seg, i) => {
         const path = "/" + segments.slice(0, i + 1).join("/");
@@ -27,8 +27,8 @@ export default function Breadcrumb() {
         const isLast = i === segments.length - 1;
 
         return (
-          <span key={path} className="flex items-center gap-1.5">
-            <ChevronRight className="w-3 h-3" />
+          <span key={path} className="flex items-center gap-1">
+            <ChevronRight className="w-3 h-3 opacity-40" />
             {isLast ? (
               <span className="text-foreground font-medium">{label}</span>
             ) : (

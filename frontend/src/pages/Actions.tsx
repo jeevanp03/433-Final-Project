@@ -76,7 +76,7 @@ const FILTER_TABS: { value: FilterTab; label: string }[] = [
 function Section({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="rounded-lg bg-card shadow-card">
       <button onClick={() => setOpen(!open)} className="flex items-center justify-between w-full px-5 py-3 text-left cursor-pointer">
         <h3 className="text-section-heading text-foreground">{title}</h3>
         {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
@@ -240,7 +240,7 @@ export default function Actions() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Left: Recommendation queue (2/3) */}
         <div className="xl:col-span-2 space-y-4">
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-lg bg-card shadow-card p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-section-heading text-foreground">Recommendation Queue</h3>
               <button
@@ -301,7 +301,7 @@ export default function Actions() {
         {/* Right: Constraints & Schedule (1/3) */}
         <div className="space-y-4">
           {/* Constraints */}
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-lg bg-card shadow-card p-5">
             <div className="flex items-center gap-2 mb-4">
               <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
               <h3 className="text-section-heading text-foreground">Constraints</h3>
@@ -317,7 +317,7 @@ export default function Actions() {
           </div>
 
           {/* Schedule preview */}
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-lg bg-card shadow-card p-5">
             <h3 className="text-section-heading text-foreground mb-4">Schedule Preview</h3>
             {displaySchedule.length === 0 ? (
               <EmptyState title="No schedule" message="Accept recommendations to build your schedule." />

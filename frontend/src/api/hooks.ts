@@ -276,10 +276,10 @@ export async function* streamChat(
 // ---------------------------------------------------------------------------
 
 export function useNarration(context: { page: string; filters?: Record<string, unknown> }) {
-  return useQuery<{ text: string }>({
+  return useQuery<{ narrative: string }>({
     queryKey: ["narration", context],
     queryFn: async () =>
-      (await api.post<{ text: string }>("/chat/narrate", context)).data,
+      (await api.post<{ narrative: string }>("/chat/narrate", context)).data,
     staleTime: 2 * 60_000,
     enabled: false, // manually triggered
   });
