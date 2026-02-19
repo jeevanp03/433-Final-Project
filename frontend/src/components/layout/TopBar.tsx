@@ -1,6 +1,8 @@
 import { useLocation } from "react-router-dom";
 import { Sun, Moon } from "lucide-react";
 import { useSettingsStore } from "@/stores/useSettingsStore";
+import DensityToggle from "./DensityToggle";
+import Breadcrumb from "./Breadcrumb";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -15,24 +17,33 @@ export default function TopBar() {
   const location = useLocation();
   const { theme, toggleTheme } = useSettingsStore();
   const title = pageTitles[location.pathname] ?? "Energy IDSS";
+  const showBreadcrumb = location.pathname !== "/";
 
   return (
-    <header className="flex items-center justify-between h-14 px-6 bg-card border-b border-border">
-      <h1 className="text-section-heading text-foreground">{title}</h1>
+    <header className="border-b border-border bg-card px-6">
+      <div className="flex items-center justify-between h-14">
+        <h1 className="text-section-heading text-foreground">{title}</h1>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
-          aria-label="Toggle theme"
-        >
-          {theme === "dark" ? (
-            <Sun className="w-5 h-5" />
-          ) : (
-            <Moon className="w-5 h-5" />
-          )}
-        </button>
+        <div className="flex items-center gap-3">
+          <DensityToggle />
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? (
+              <Sun className="w-5 h-5" />
+            ) : (
+              <Moon className="w-5 h-5" />
+            )}
+          </button>
+        </div>
       </div>
+      {showBreadcrumb && (
+        <div className="pb-2">
+          <Breadcrumb />
+        </div>
+      )}
     </header>
   );
 }

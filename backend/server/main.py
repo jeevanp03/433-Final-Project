@@ -2,18 +2,10 @@
 FastAPI entry point for the Energy IDSS backend server.
 
 Run:
-    cd frontend && PYTHONPATH=../backend uvicorn server.main:app --reload --port 8000
+    cd backend && uvicorn server.main:app --reload --port 8000
 """
 
 from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-# Ensure backend is importable before any router import
-_backend_root = Path(__file__).resolve().parents[1].parent / "backend"
-if str(_backend_root) not in sys.path:
-    sys.path.insert(0, str(_backend_root))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

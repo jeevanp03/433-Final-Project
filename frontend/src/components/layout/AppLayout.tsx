@@ -1,10 +1,11 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
+import ToastContainer from "@/components/ui/Toast";
 
 export default function AppLayout() {
   return (
-    <div className="flex h-screen bg-[var(--bg)]">
+    <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex flex-col flex-1 overflow-hidden">
         <TopBar />
@@ -14,6 +15,7 @@ export default function AppLayout() {
           </div>
         </main>
       </div>
+      <ToastContainer />
     </div>
   );
 }

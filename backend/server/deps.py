@@ -2,24 +2,21 @@
 Shared dependencies for the FastAPI server.
 
 Lazily loads models, data, and configuration on first access.
-All backend imports resolve via PYTHONPATH=../../backend (set in main.py).
+Server lives at backend/server/, so ``from src.*`` imports resolve naturally.
 """
 
 from __future__ import annotations
 
-import sys
 from functools import lru_cache
 from pathlib import Path
-
-# Ensure backend is importable
-_backend_root = Path(__file__).resolve().parents[1].parent / "backend"
-if str(_backend_root) not in sys.path:
-    sys.path.insert(0, str(_backend_root))
 
 import numpy as np
 import pandas as pd
 
 from src.skills.config_loader import get_param, load_config
+
+# backend/ is the parent of server/
+_backend_root = Path(__file__).resolve().parents[1]
 
 # Ensure config is loaded
 load_config()

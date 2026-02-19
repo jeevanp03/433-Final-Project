@@ -210,5 +210,4 @@ frontend-test:
 # -----------------------------------------------------------------------------
 server:
 	@echo "--- Starting FastAPI server (port 8000) ---"
-	cd $(FRONTEND_DIR) && PYTHONPATH=../backend $(PYTHON) -m uvicorn server.main:app \
-		--reload --port 8000
+	$(PYTHON) -m uvicorn server.main:app --reload --port 8000
