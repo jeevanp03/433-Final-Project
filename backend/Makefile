@@ -18,7 +18,7 @@
 # =============================================================================
 
 .PHONY: install ingest clean-data features train evaluate dashboard test all help \
-       frontend-install frontend-dev frontend-build frontend-test
+       frontend-install frontend-dev frontend-build frontend-test server
 
 # Default target
 .DEFAULT_GOAL := help
@@ -52,6 +52,7 @@ help:
 	@echo "  frontend-dev      Start React dev server on port 5173"
 	@echo "  frontend-build    Production build of React frontend"
 	@echo "  frontend-test     Run Vitest frontend tests"
+	@echo "  server            Start FastAPI backend server on port 8000"
 	@echo ""
 	@echo "  help              Show this help message"
 	@echo ""
@@ -200,3 +201,14 @@ frontend-build:
 frontend-test:
 	@echo "--- Running frontend tests ---"
 	cd $(FRONTEND_DIR) && npm test
+
+
+# -----------------------------------------------------------------------------
+# server: Start the FastAPI backend server on port 8000
+# Depends on: all pipeline artefacts (train + evaluate recommended)
+# The Vite dev server proxies /api requests here.
+# -----------------------------------------------------------------------------
+server:
+	@echo "--- Starting FastAPI server (port 8000) ---"
+	cd $(FRONTEND_DIR) && PYTHONPATH=../backend $(PYTHON) -m uvicorn server.main:app \
+		--reload --port 8000
