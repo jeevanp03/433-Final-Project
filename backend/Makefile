@@ -17,7 +17,8 @@
 # resolve correctly.  Activate your venv before running make targets.
 # =============================================================================
 
-.PHONY: install ingest clean-data features train evaluate dashboard test all help
+.PHONY: install ingest clean-data features train evaluate dashboard test all help \
+       frontend-install frontend-dev frontend-build frontend-test
 
 # Default target
 .DEFAULT_GOAL := help
@@ -37,16 +38,22 @@ help:
 	@echo ""
 	@echo "Household Energy Dashboard – available make targets:"
 	@echo ""
-	@echo "  install      Install Python dependencies (pip install -r requirements.txt)"
-	@echo "  ingest       Load raw UCI CSV into a pandas DataFrame (load.py)"
-	@echo "  clean-data   Resample to hourly, fill gaps, save Parquet (clean.py)"
-	@echo "  features     Build feature matrix from clean Parquet (engineer.py)"
-	@echo "  train        Train XGBoost + Ridge models (xgb.py, ridge.py)"
-	@echo "  evaluate     Backtesting evaluation and save metrics CSV (evaluate.py)"
-	@echo "  dashboard    Launch the Streamlit dashboard on port 8501"
-	@echo "  test         Run pytest test suite with coverage report"
-	@echo "  all          Full pipeline: clean-data → features → train → evaluate → test"
-	@echo "  help         Show this help message"
+	@echo "  install           Install Python dependencies (pip install -r requirements.txt)"
+	@echo "  ingest            Load raw UCI CSV into a pandas DataFrame (load.py)"
+	@echo "  clean-data        Resample to hourly, fill gaps, save Parquet (clean.py)"
+	@echo "  features          Build feature matrix from clean Parquet (engineer.py)"
+	@echo "  train             Train XGBoost + Ridge models (xgb.py, ridge.py)"
+	@echo "  evaluate          Backtesting evaluation and save metrics CSV (evaluate.py)"
+	@echo "  dashboard         Launch the Streamlit dashboard on port 8501"
+	@echo "  test              Run pytest test suite with coverage report"
+	@echo "  all               Full pipeline: clean-data → features → train → evaluate → test"
+	@echo ""
+	@echo "  frontend-install  Install React frontend dependencies (npm install)"
+	@echo "  frontend-dev      Start React dev server on port 5173"
+	@echo "  frontend-build    Production build of React frontend"
+	@echo "  frontend-test     Run Vitest frontend tests"
+	@echo ""
+	@echo "  help              Show this help message"
 	@echo ""
 
 
@@ -170,3 +177,26 @@ clean-artifacts:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -name "*.pyc" -delete 2>/dev/null || true
 	@echo "Artefacts removed. Re-run 'make all' to regenerate."
+
+
+# -----------------------------------------------------------------------------
+# Frontend (React + Vite) targets
+# All run from the frontend/ directory at project root.
+# -----------------------------------------------------------------------------
+FRONTEND_DIR := $(CURDIR)/../frontend
+
+frontend-install:
+	@echo "--- Installing frontend dependencies ---"
+	cd $(FRONTEND_DIR) && npm install
+
+frontend-dev:
+	@echo "--- Starting React dev server (port 5173) ---"
+	cd $(FRONTEND_DIR) && npm run dev
+
+frontend-build:
+	@echo "--- Building React frontend for production ---"
+	cd $(FRONTEND_DIR) && npm run build
+
+frontend-test:
+	@echo "--- Running frontend tests ---"
+	cd $(FRONTEND_DIR) && npm test
