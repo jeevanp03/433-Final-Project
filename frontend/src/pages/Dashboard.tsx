@@ -105,6 +105,16 @@ function computeTouBreakdown(
 // Sub-components
 // ---------------------------------------------------------------------------
 
+function formatPeakHour(raw: string): string {
+  try {
+    const d = new Date(raw.includes("T") ? raw : raw.replace(" ", "T"));
+    if (isNaN(d.getTime())) return raw;
+    return format(d, "h:mm a");
+  } catch {
+    return raw;
+  }
+}
+
 function PeakAlertBadge({ peakHour }: { peakHour: string }) {
   return (
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-energy-red/6 border border-energy-red/15">
@@ -112,7 +122,7 @@ function PeakAlertBadge({ peakHour }: { peakHour: string }) {
         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-energy-red opacity-75" />
         <span className="relative inline-flex rounded-full h-2 w-2 bg-energy-red" />
       </span>
-      <span className="text-[12px] font-medium text-energy-red">Peak demand expected at {peakHour}</span>
+      <span className="text-[12px] font-medium text-energy-red">Peak demand expected at {formatPeakHour(peakHour)}</span>
     </div>
   );
 }
