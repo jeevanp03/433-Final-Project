@@ -20,6 +20,7 @@ import { COLOURS, CHART_DEFAULTS } from "@/theme/chartTheme";
 import { useDefaultRecommendations, useRecommendations } from "@/api/hooks";
 import { useRecommendationStore, type Recommendation, type ScheduleBlock } from "@/stores/useRecommendationStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
+import { useUIStore } from "@/stores/useUIStore";
 import type { ScheduleEntry, RecommendResponse } from "@/types/api";
 
 // ---------------------------------------------------------------------------
@@ -119,6 +120,7 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel }: {
 export default function Actions() {
   const { queue, schedule, impactLog, setQueue, setSchedule, acceptReco, rejectReco, snoozeReco, updateScheduleBlock, clearHistory } = useRecommendationStore();
   const { currency } = useSettingsStore();
+  const density = useUIStore((s) => s.density);
 
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [showClearDialog, setShowClearDialog] = useState(false);
@@ -236,8 +238,8 @@ export default function Actions() {
         <KpiCard label="Pending" value={kpis.pendingCount} unit="" icon={<Calendar className="w-4 h-4" />} colour={COLOURS.orange} loading={isLoading} />
       </div>
 
-      {/* Main two-column layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      {/* Main two-column layout — hidden at glance density */}
+      {density !== "glance" && <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Left: Recommendation queue (2/3) */}
         <div className="xl:col-span-2 space-y-4">
           <div className="rounded-lg bg-card shadow-card p-5">
@@ -336,27 +338,27 @@ export default function Actions() {
             )}
           </div>
         </div>
-      </div>
+      </div>}
 
-      {/* Baseline vs Optimised profile */}
-      {profileData.length > 0 && (
-        <Section title="Baseline vs Optimised Profile" defaultOpen>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={profileData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray={CHART_DEFAULTS.gridStrokeDasharray} stroke={CHART_DEFAULTS.axisStroke} opacity={CHART_DEFAULTS.gridOpacity} />
-              <XAxis dataKey="hour" tick={{ fontSize: 10 }} stroke={CHART_DEFAULTS.axisStroke} />
-              <YAxis tick={{ fontSize: 10 }} stroke={CHART_DEFAULTS.axisStroke} label={{ value: "kW", angle: -90, position: "insideLeft", style: { fontSize: 11 } }} />
-              <Tooltip contentStyle={{ backgroundColor: CHART_DEFAULTS.tooltipBg, border: `1px solid ${CHART_DEFAULTS.tooltipBorder}`, borderRadius: CHART_DEFAULTS.tooltipRadius, fontSize: 12 }} />
-              <Legend iconType="line" iconSize={16} wrapperStyle={{ fontSize: 12 }} />
-              <Line dataKey="baseline" name="Baseline" stroke={COLOURS.red} strokeWidth={1.5} strokeDasharray="6 3" dot={false} />
-              <Line dataKey="optimised" name="Optimised" stroke={COLOURS.green} strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Section>
-      )}
+      {/* Baseline vs Optimised + Impact tracker — deep dive only */}
+      {density === "deep_dive" && <>
+        {profileData.length > 0 && (
+          <Section title="Baseline vs Optimised Profile" defaultOpen>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={profileData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray={CHART_DEFAULTS.gridStrokeDasharray} stroke={CHART_DEFAULTS.axisStroke} opacity={CHART_DEFAULTS.gridOpacity} />
+                <XAxis dataKey="hour" tick={{ fontSize: 10 }} stroke={CHART_DEFAULTS.axisStroke} />
+                <YAxis tick={{ fontSize: 10 }} stroke={CHART_DEFAULTS.axisStroke} label={{ value: "kW", angle: -90, position: "insideLeft", style: { fontSize: 11 } }} />
+                <Tooltip contentStyle={{ backgroundColor: CHART_DEFAULTS.tooltipBg, border: `1px solid ${CHART_DEFAULTS.tooltipBorder}`, borderRadius: CHART_DEFAULTS.tooltipRadius, fontSize: 12 }} />
+                <Legend iconType="line" iconSize={16} wrapperStyle={{ fontSize: 12 }} />
+                <Line dataKey="baseline" name="Baseline" stroke={COLOURS.red} strokeWidth={1.5} strokeDasharray="6 3" dot={false} />
+                <Line dataKey="optimised" name="Optimised" stroke={COLOURS.green} strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </Section>
+        )}
 
-      {/* Impact tracker */}
-      <Section title="Impact Tracker">
+        <Section title="Impact Tracker">
         {impactLog.length === 0 ? (
           <EmptyState title="No impact data yet" message="Accept recommendations to start tracking savings impact over time." />
         ) : (
@@ -416,6 +418,7 @@ export default function Actions() {
           </div>
         )}
       </Section>
+      </>}
 
       <ConfirmDialog
         open={showClearDialog}

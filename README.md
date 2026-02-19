@@ -12,7 +12,8 @@ utility-portal teams embedding a demand-analytics widget.
 
 **Capabilities:** descriptive (historical usage patterns), predictive (24 h and
 7-day hourly forecasts with 90 % prediction intervals), and prescriptive
-(MILP load-shift recommendations against a 3-tier TOU tariff).
+(MILP load-shift recommendations against a 3-tier TOU tariff). Defaults to
+Canada / CAD with configurable region and currency.
 
 Full design specification: `Planning/Energy_Dashboard_Design_Document.pdf`
 
@@ -90,8 +91,8 @@ Conformal prediction half-widths (90 % coverage target): h=1 → **1.04 kW**, h=
 │   │   │   ├── cards/                KpiCard, RecommendationCard, etc.
 │   │   │   ├── chat/                 ChatDrawer, MessageBubble, etc.
 │   │   │   └── layout/               Sidebar, TopBar, AppLayout
-│   │   ├── pages/                    6 pages: Dashboard, Forecast, Simulate,
-│   │   │                             Analytics, Actions, Settings
+│   │   ├── pages/                    7 pages: Dashboard, Forecast, Simulate,
+│   │   │                             Analytics, Actions, Settings, Onboarding
 │   │   ├── stores/                   7 Zustand state slices
 │   │   ├── hooks/                    Custom React hooks
 │   │   ├── lib/                      Utility functions
@@ -136,6 +137,20 @@ Five-layer ML pipeline with Parquet data contracts, served via FastAPI to a Reac
 
 **Backend API:** FastAPI with lazy model loading, SSE streaming for LLM chat, Ollama integration.
 
+**First-run onboarding:** A 3-step setup wizard (region/currency, household profile,
+LLM connection) is shown on first visit. Settings persist in localStorage and can
+be changed later on the Settings page. A "Skip setup" link applies sensible defaults
+(Canada, CAD).
+
+**Progressive disclosure (Density Toggle):** Each page supports three information
+density levels selectable from the top bar:
+
+| Level | Shows |
+|---|---|
+| **Glance** | KPI cards and headers only — at-a-glance status |
+| **Explore** | KPIs + main charts, recommendations, and controls |
+| **Deep Dive** | Everything including backtests, SHAP explanations, heatmaps, decomposition, and AI insights |
+
 ---
 
 ## Module Descriptions
@@ -177,11 +192,13 @@ cp .env.example .env
 |---|---|---|
 | `API_PORT` | `8000` | FastAPI server port |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama LLM server URL |
-| `OLLAMA_MODEL` | `llama3:8b` | Default model for chat/narration |
+| `OLLAMA_MODEL` | `deepseek-r1:1.5b` | Default model for chat/narration |
 | `CORS_ORIGINS` | `http://localhost:5173,...` | Allowed CORS origins (comma-separated) |
-| `VITE_API_URL` | `http://localhost:8000` | API base URL used by the React frontend |
+| `VITE_API_URL` | `/api` | API base URL used by the React frontend (proxied by Vite) |
+| `VITE_OLLAMA_URL` | `http://localhost:11434` | Ollama URL exposed to frontend settings |
+| `VITE_OLLAMA_MODEL` | `deepseek-r1:1.5b` | LLM model name shown in frontend |
 
-Both the backend (FastAPI) and frontend (Vite) read from this single root `.env` file.
+The backend reads `OLLAMA_*` variables directly. The frontend reads `VITE_*` variables via Vite's env injection. Both can share a single root `.env` file.
 
 ### 2. Backend Setup
 
@@ -231,18 +248,19 @@ brew install ollama
 ollama serve
 
 # 3. Pull a model (choose one)
-ollama pull llama3:8b              # Recommended (requires ~8 GB RAM)
-ollama pull deepseek-r1:1.5b      # Lightweight alternative (~2 GB RAM)
+ollama pull deepseek-r1:1.5b      # Default (~2 GB RAM)
+ollama pull deepseek-r1:7b        # More capable (~7 GB RAM)
+ollama pull llama3:8b              # Alternative (~8 GB RAM)
 
 # 4. Verify it's running
 curl http://localhost:11434/api/tags
 ```
 
-The backend auto-detects installed models. Set `OLLAMA_MODEL` in `.env` to change
-the default. The Settings page also has an LLM model selector dropdown.
+Set `OLLAMA_MODEL` and `VITE_OLLAMA_MODEL` in `.env` to change the model.
+The model is **read-only** in the UI (configured via environment variables only).
 
 **Without Ollama:** Chat drawer shows an offline message. Auto-narration panels
-fall back to template-based text. All other dashboard features work normally.
+display a retry button. All other dashboard features work normally.
 
 ---
 
@@ -345,9 +363,9 @@ npm run test:watch        # Watch mode for development
 
 | Category | Tests | Files |
 |---|---|---|
-| Zustand stores (7 stores) | 45 | `tests/stores.test.ts` |
-| API client + Zod schemas | 22 | `tests/api.test.ts` |
-| Component tests | 21 | `tests/components.test.tsx` |
+| Zustand stores (7 stores) | 46 | `tests/stores.test.ts` |
+| API client + Zod schemas | 20 | `tests/api.test.ts` |
+| Component tests | 22 | `tests/components.test.tsx` |
 | SSE + integration | 12 | `tests/integration.test.ts` |
 
 Key acceptance criteria enforced by tests:

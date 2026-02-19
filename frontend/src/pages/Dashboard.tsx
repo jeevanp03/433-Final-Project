@@ -35,6 +35,7 @@ import { useStatus, useForecast, useDefaultRecommendations, useHistory } from "@
 import { useRecommendationStore, type Recommendation } from "@/stores/useRecommendationStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { useSimulationStore } from "@/stores/useSimulationStore";
+import { useUIStore } from "@/stores/useUIStore";
 import type { ScheduleEntry } from "@/types/api";
 
 // ---------------------------------------------------------------------------
@@ -172,6 +173,7 @@ function PanelError({ message }: { message: string }) {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { currency, touSchedule } = useSettingsStore();
+  const density = useUIStore((s) => s.density);
   const { acceptReco, snoozeReco, rejectReco } = useRecommendationStore();
   const { addBlock, clearBlocks } = useSimulationStore();
 
@@ -291,8 +293,8 @@ export default function Dashboard() {
 
       {statusError && <PanelError message="Could not load status data. The backend server may be offline." />}
 
-      {/* Main content: 2-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Main content: 2-column layout — hidden at glance density */}
+      {density !== "glance" && <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left: Forecast + Comparison */}
         <div className="lg:col-span-2 space-y-4">
           {forecastError ? (
@@ -420,10 +422,10 @@ export default function Dashboard() {
             </div>
           </PanelCard>
         </div>
-      </div>
+      </div>}
 
-      {/* Bottom: Recommendations + AI */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Bottom: Recommendations + AI — explore and above */}
+      {density !== "glance" && <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
           <SectionHeader title="Recommendations" actionLabel="All actions" onAction={() => navigate("/actions")} />
           {recoError ? (
@@ -449,11 +451,13 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div>
-          <SectionHeader title="AI Insights" />
-          <NarrationPanel page="dashboard" />
-        </div>
-      </div>
+        {density === "deep_dive" && (
+          <div>
+            <SectionHeader title="AI Insights" />
+            <NarrationPanel page="dashboard" />
+          </div>
+        )}
+      </div>}
     </div>
   );
 }

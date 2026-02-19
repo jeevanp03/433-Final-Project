@@ -20,6 +20,7 @@ import ErrorFallback from "@/components/ui/ErrorFallback";
 import { useHistory, useDecomposition } from "@/api/hooks";
 import { useAnalyticsStore, type Granularity } from "@/stores/useAnalyticsStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
+import { useUIStore } from "@/stores/useUIStore";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,6 +56,7 @@ function Section({ title, defaultOpen = false, children }: { title: string; defa
 export default function Analytics() {
   const { dateRange, granularity, subMeterFilter, compareMode, setDateRange, setGranularity, setCompareMode } = useAnalyticsStore();
   const { currency, touSchedule } = useSettingsStore();
+  const density = useUIStore((s) => s.density);
 
   // Map store SubMeter values to API meter names
   const selectedMeters: ApiMeter[] = useMemo(() => {
@@ -221,8 +223,8 @@ export default function Analytics() {
         <KpiCard label="Est. Cost" value={kpis.cost} unit={currency} colour={COLOURS.green} loading={isLoading} />
       </div>
 
-      {/* Time-series explorer */}
-      <div className="rounded-lg bg-card shadow-card p-5">
+      {/* Time-series explorer — hidden at glance density */}
+      {density !== "glance" && <div className="rounded-lg bg-card shadow-card p-5">
         <h3 className="text-section-heading text-foreground mb-4">Time-Series Explorer</h3>
         {isLoading && <LoadingOverlay message="Loading history..." />}
         {isError && <ErrorFallback title="History unavailable" message="Could not load data." onRetry={() => h0.refetch()} />}
@@ -244,34 +246,36 @@ export default function Analytics() {
         {!isLoading && !isError && chartData.length === 0 && (
           <p className="text-small text-muted-foreground text-center py-12">No data available for the selected range.</p>
         )}
-      </div>
+      </div>}
 
-      {/* Expandable sections */}
-      {apiGranularity === "hour" && heatmapData.length > 0 && (
-        <Section title="Demand Heatmap" defaultOpen>
-          <Heatmap data={heatmapData} height={Math.min(500, heatmapData.length / 24 * 8 + 60)} />
-        </Section>
-      )}
+      {/* Expandable sections — deep dive only */}
+      {density === "deep_dive" && <>
+        {apiGranularity === "hour" && heatmapData.length > 0 && (
+          <Section title="Demand Heatmap" defaultOpen>
+            <Heatmap data={heatmapData} height={Math.min(500, heatmapData.length / 24 * 8 + 60)} />
+          </Section>
+        )}
 
-      {apiGranularity === "hour" && boxPlotData.length > 0 && (
-        <Section title="Distribution by Hour">
-          <BoxPlotPanel data={boxPlotData} unit="kW" height={320} />
-        </Section>
-      )}
+        {apiGranularity === "hour" && boxPlotData.length > 0 && (
+          <Section title="Distribution by Hour">
+            <BoxPlotPanel data={boxPlotData} unit="kW" height={320} />
+          </Section>
+        )}
 
-      {decomposition.data && (
-        <Section title="Seasonal Decomposition">
-          {decomposition.isLoading && <LoadingOverlay message="Computing STL..." />}
-          {decomposition.isError && <ErrorFallback title="Decomposition failed" onRetry={() => decomposition.refetch()} />}
-          {decomposition.data && <DecompositionPanel data={decomposition.data} height={420} />}
-        </Section>
-      )}
+        {decomposition.data && (
+          <Section title="Seasonal Decomposition">
+            {decomposition.isLoading && <LoadingOverlay message="Computing STL..." />}
+            {decomposition.isError && <ErrorFallback title="Decomposition failed" onRetry={() => decomposition.refetch()} />}
+            {decomposition.data && <DecompositionPanel data={decomposition.data} height={420} />}
+          </Section>
+        )}
 
-      {costData.length > 0 && (
-        <Section title="Cost Breakdown by TOU Tier">
-          <CostBreakdown data={costData} height={300} currency={currency} />
-        </Section>
-      )}
+        {costData.length > 0 && (
+          <Section title="Cost Breakdown by TOU Tier">
+            <CostBreakdown data={costData} height={300} currency={currency} />
+          </Section>
+        )}
+      </>}
     </div>
   );
 }

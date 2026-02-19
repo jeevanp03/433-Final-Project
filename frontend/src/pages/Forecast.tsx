@@ -33,6 +33,7 @@ import LoadingOverlay from "@/components/ui/LoadingOverlay";
 import type { ForecastPoint } from "@/types/api";
 import { useForecast, useBacktest, useExplanation, useMetrics } from "@/api/hooks";
 import { useForecastStore, type Horizon } from "@/stores/useForecastStore";
+import { useUIStore } from "@/stores/useUIStore";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -140,6 +141,7 @@ function ResidualChart({ points }: { points: { horizon: number; residual: number
 
 export default function Forecast() {
   const { origin, horizon, selectedModels, confidence, comparisonMode, backtestMode, showTouPricing, setOrigin, toggleComparisonMode, toggleBacktestMode, toggleTouPricing } = useForecastStore();
+  const density = useUIStore((s) => s.density);
 
   const [selectedHour, setSelectedHour] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -216,8 +218,8 @@ export default function Forecast() {
         </div>
       </div>
 
-      {/* Chart + sidebar */}
-      <div className="flex flex-col lg:flex-row gap-6">
+      {/* Chart + sidebar — hidden at glance density */}
+      {density !== "glance" && <div className="flex flex-col lg:flex-row gap-6">
         {comparisonMode && (
           <div className="lg:w-[200px] shrink-0">
             <div className="rounded-lg bg-card shadow-card p-4 space-y-3">
@@ -263,8 +265,8 @@ export default function Forecast() {
             )}
           </div>
 
-          {/* Backtest residuals */}
-          {backtestMode && origin && (
+          {/* Backtest residuals — deep dive only */}
+          {density === "deep_dive" && backtestMode && origin && (
             <>
               {backtest.isLoading && <LoadingOverlay message="Loading backtest..." />}
               {backtest.isError && <ErrorFallback title="Backtest unavailable" message="Select a valid historical origin." onRetry={() => backtest.refetch()} />}
@@ -293,7 +295,7 @@ export default function Forecast() {
             </>
           )}
 
-          {selectedHour === null && primaryForecast.data && (
+          {density === "deep_dive" && selectedHour === null && primaryForecast.data && (
             <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-energy-blue/5 border border-energy-blue/20">
               <Info className="w-4 h-4 text-energy-blue shrink-0" />
               <p className="text-small text-muted-foreground">Click on any forecast point to view its SHAP feature attributions.</p>
@@ -301,8 +303,8 @@ export default function Forecast() {
           )}
         </div>
 
-        {/* Right sidebar */}
-        <div className={`lg:w-[320px] shrink-0 space-y-4 transition-all ${sidebarOpen ? "" : "lg:w-0 lg:overflow-hidden lg:opacity-0"}`}>
+        {/* Right sidebar — deep dive only */}
+        {density === "deep_dive" && <div className={`lg:w-[320px] shrink-0 space-y-4 transition-all ${sidebarOpen ? "" : "lg:w-0 lg:overflow-hidden lg:opacity-0"}`}>
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden lg:flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
             <ChevronRight className={`w-3.5 h-3.5 transition-transform ${sidebarOpen ? "rotate-180" : ""}`} />
             {sidebarOpen ? "Hide details" : "Show details"}
@@ -371,8 +373,8 @@ export default function Forecast() {
               </div>
             </div>
           )}
-        </div>
-      </div>
+        </div>}
+      </div>}
     </div>
   );
 }
