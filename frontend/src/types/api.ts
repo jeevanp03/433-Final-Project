@@ -265,6 +265,21 @@ export interface SensitivityRequest {
 }
 
 // ---------------------------------------------------------------------------
+// Upload
+// ---------------------------------------------------------------------------
+
+export const UploadResponseSchema = z.object({
+  filename: z.string(),
+  rows_raw: z.number().int(),
+  rows_clean: z.number().int(),
+  date_range: z.record(z.string(), z.string()),
+  columns: z.array(z.string()),
+  warnings: z.array(z.string()),
+});
+
+export type UploadResponse = z.infer<typeof UploadResponseSchema>;
+
+// ---------------------------------------------------------------------------
 // Chat (SSE)
 // ---------------------------------------------------------------------------
 

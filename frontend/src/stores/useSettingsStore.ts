@@ -64,6 +64,11 @@ interface SettingsState {
   budgetAlertEnabled: boolean;
   budgetLimit: number;
 
+  // Dataset
+  dataSource: "uci" | "custom";
+  uploadedFileName: string | null;
+  uploadedAt: string | null;
+
   // LLM
   llmModel: string;
   narrationMode: "auto" | "manual" | "off";
@@ -75,6 +80,8 @@ interface SettingsState {
   completeOnboarding: () => void;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
+  setDataSource: (source: SettingsState["dataSource"]) => void;
+  setUploadedFile: (name: string | null, at: string | null) => void;
   setDensity: (density: DensityLevel) => void;
   setDefaultHorizon: (horizon: ForecastHorizon) => void;
   setRegion: (region: Region) => void;
@@ -160,6 +167,9 @@ const DEFAULTS: Omit<SettingsState, keyof SettingsActions> = {
   floorArea: 120,
   climateZone: "temperate",
   appliances: DEFAULT_APPLIANCES,
+  dataSource: "uci" as const,
+  uploadedFileName: null,
+  uploadedAt: null,
   peakAlertEnabled: true,
   budgetAlertEnabled: false,
   budgetLimit: 5.0,
@@ -175,6 +185,8 @@ type SettingsActions = {
   completeOnboarding: () => void;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
+  setDataSource: (source: SettingsState["dataSource"]) => void;
+  setUploadedFile: (name: string | null, at: string | null) => void;
   setDensity: (density: DensityLevel) => void;
   setDefaultHorizon: (horizon: ForecastHorizon) => void;
   setRegion: (region: Region) => void;
@@ -243,6 +255,9 @@ export const useSettingsStore = create<SettingsState>()(
       setBudgetAlertEnabled: (budgetAlertEnabled) =>
         set({ budgetAlertEnabled }),
       setBudgetLimit: (budgetLimit) => set({ budgetLimit }),
+      setDataSource: (dataSource) => set({ dataSource }),
+      setUploadedFile: (uploadedFileName, uploadedAt) =>
+        set({ uploadedFileName, uploadedAt }),
       setLlmModel: (llmModel) => set({ llmModel }),
       setNarrationMode: (narrationMode) => set({ narrationMode }),
       setLlmTemperature: (llmTemperature) => set({ llmTemperature }),

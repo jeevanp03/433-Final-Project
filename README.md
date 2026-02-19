@@ -394,9 +394,47 @@ Key acceptance criteria enforced by tests:
 | `/api/explain` | GET | SHAP-based explanation for a forecast hour |
 | `/api/simulate` | POST | Monte Carlo simulation with scenario blocks |
 | `/api/sensitivity` | POST | Tornado-chart sensitivity analysis |
+| `/api/upload` | POST | Upload custom CSV dataset (multipart) |
 | `/api/chat` | POST | LLM chat with SSE streaming |
 | `/api/chat/narrate` | POST | Auto-narration for dashboard page |
 | `/api/chat/suggest` | POST | Context-aware suggestion chips |
+
+---
+
+## Custom Data Upload
+
+Users can replace the built-in UCI dataset with their own household power data
+via **Settings > Dataset** or `POST /api/upload`.
+
+### Expected CSV Format
+
+Semicolon-delimited (`;`) with these columns:
+
+| Column | Type | Example |
+|---|---|---|
+| `Date` | `dd/mm/yyyy` | `16/12/2006` |
+| `Time` | `HH:MM:SS` | `17:24:00` |
+| `Global_active_power` | float (kW) | `4.216` |
+| `Global_reactive_power` | float (kW) | `0.418` |
+| `Voltage` | float (V) | `234.840` |
+| `Global_intensity` | float (A) | `18.400` |
+| `Sub_metering_1` | float (Wh) | `0.000` |
+| `Sub_metering_2` | float (Wh) | `1.000` |
+| `Sub_metering_3` | float (Wh) | `17.000` |
+
+Missing values should use `?` (same as the UCI dataset convention).
+
+### How It Works
+
+1. Go to **Settings > Dataset** and drag-and-drop a CSV or click to browse.
+2. The server parses the file, validates required columns, resamples to hourly,
+   fills short gaps, drops long gaps, and computes `Other_consumption`.
+3. The cleaned data replaces `data/processed/hourly_clean.parquet`.
+4. All server caches are cleared, and the dashboard refreshes with the new data.
+
+**Note:** Uploading replaces the current dataset. Pre-trained models were fitted
+on the UCI data and may not generalize perfectly to a different household's
+consumption patterns.
 
 ---
 

@@ -197,3 +197,16 @@ class SensitivityResponse(BaseModel):
     bars: list[SensitivityBar]
     baseline_value: float
     metric: str
+
+
+# ---------------------------------------------------------------------------
+# Upload
+# ---------------------------------------------------------------------------
+
+class UploadResponse(BaseModel):
+    filename: str
+    rows_raw: int
+    rows_clean: int
+    date_range: dict[str, str]
+    columns: list[str]
+    warnings: list[str]

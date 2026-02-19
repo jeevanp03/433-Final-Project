@@ -1,4 +1,4 @@
-import { useQuery, useMutation, queryOptions } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { api } from "./client";
 import type {
   BacktestParams,
@@ -19,6 +19,7 @@ import type {
   SimulateRequest,
   SimulateResponse,
   Status,
+  UploadResponse,
 } from "@/types/api";
 
 // ---------------------------------------------------------------------------
@@ -222,6 +223,35 @@ export function useMetrics(split: "validation" | "test" = "test") {
     queryFn: async () =>
       (await api.get<MetricsResponse>("/metrics", { params: { split } })).data,
     staleTime: Infinity,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/upload — dataset upload mutation
+// ---------------------------------------------------------------------------
+
+export function useUploadDataset() {
+  const qc = useQueryClient();
+  return useMutation<UploadResponse, Error, File>({
+    mutationFn: async (file) => {
+      const form = new FormData();
+      form.append("file", file);
+      const { data } = await api.post<UploadResponse>("/upload", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 120_000,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["forecast"] });
+      qc.invalidateQueries({ queryKey: ["history"] });
+      qc.invalidateQueries({ queryKey: ["status"] });
+      qc.invalidateQueries({ queryKey: ["backtest"] });
+      qc.invalidateQueries({ queryKey: ["metrics"] });
+      qc.invalidateQueries({ queryKey: ["decomposition"] });
+      qc.invalidateQueries({ queryKey: ["explain"] });
+      qc.invalidateQueries({ queryKey: ["recommend"] });
+    },
   });
 }
 

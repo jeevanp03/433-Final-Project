@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
+import type { DragEvent } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -16,8 +17,14 @@ import {
   RotateCcw,
   Download,
   Upload,
+  FileUp,
+  CheckCircle2,
+  AlertTriangle,
+  HardDrive,
+  Loader2,
 } from "lucide-react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { useUploadDataset } from "@/api/hooks";
 import {
   useSettingsStore,
   type Theme,
@@ -800,6 +807,147 @@ function LlmSection() {
 }
 
 // ---------------------------------------------------------------------------
+// Dataset Upload Section
+// ---------------------------------------------------------------------------
+
+function DataUploadSection() {
+  const { dataSource, uploadedFileName, uploadedAt, setDataSource, setUploadedFile } =
+    useSettingsStore();
+  const upload = useUploadDataset();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleFile = useCallback(
+    (file: File) => {
+      upload.mutate(file, {
+        onSuccess: (res) => {
+          setDataSource("custom");
+          setUploadedFile(res.filename, new Date().toISOString());
+        },
+      });
+    },
+    [upload, setDataSource, setUploadedFile],
+  );
+
+  const onDrop = useCallback(
+    (e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setDragOver(false);
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    },
+    [handleFile],
+  );
+
+  const onDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOver(true);
+  }, []);
+
+  const onDragLeave = useCallback(() => setDragOver(false), []);
+
+  return (
+    <div className="space-y-4">
+      {/* Current status */}
+      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+        <HardDrive className="w-4 h-4 text-muted-foreground shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-body text-foreground font-medium">
+            {dataSource === "uci" ? "UCI Default Dataset" : uploadedFileName ?? "Custom Dataset"}
+          </p>
+          <p className="text-small text-muted-foreground">
+            {dataSource === "uci"
+              ? "Dec 2006 — Nov 2010 (2M+ rows, ~34k hourly)"
+              : `Uploaded ${uploadedAt ? new Date(uploadedAt).toLocaleDateString() : ""}`}
+          </p>
+        </div>
+        <span
+          className={`px-2 py-0.5 rounded text-small font-medium ${
+            dataSource === "uci"
+              ? "bg-energy-blue/10 text-energy-blue"
+              : "bg-energy-green/10 text-energy-green"
+          }`}
+        >
+          {dataSource === "uci" ? "Default" : "Custom"}
+        </span>
+      </div>
+
+      {/* Drop zone */}
+      <div
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onClick={() => fileRef.current?.click()}
+        className={`relative flex flex-col items-center justify-center gap-2 p-8 rounded-lg border-2 border-dashed transition-colors cursor-pointer ${
+          dragOver
+            ? "border-energy-blue bg-energy-blue/5"
+            : "border-border hover:border-muted-foreground"
+        }`}
+      >
+        {upload.isPending ? (
+          <Loader2 className="w-8 h-8 text-energy-blue animate-spin" />
+        ) : (
+          <FileUp className="w-8 h-8 text-muted-foreground" />
+        )}
+        <p className="text-body text-foreground font-medium">
+          {upload.isPending ? "Processing..." : "Drop CSV file here or click to browse"}
+        </p>
+        <p className="text-small text-muted-foreground">
+          Semicolon-delimited CSV with Date, Time, and 7 power columns
+        </p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv,.txt"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFile(file);
+            e.target.value = "";
+          }}
+        />
+      </div>
+
+      {/* Success message */}
+      {upload.isSuccess && (
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-energy-green/10">
+          <CheckCircle2 className="w-5 h-5 text-energy-green shrink-0 mt-0.5" />
+          <div className="text-small">
+            <p className="text-foreground font-medium">Upload successful</p>
+            <p className="text-muted-foreground">
+              {upload.data.rows_raw.toLocaleString()} raw rows cleaned to{" "}
+              {upload.data.rows_clean.toLocaleString()} hourly rows
+              ({upload.data.date_range.from} — {upload.data.date_range.to})
+            </p>
+            {upload.data.warnings.length > 0 && (
+              <div className="mt-2 flex items-start gap-2 text-energy-orange">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <ul className="list-disc list-inside">
+                  {upload.data.warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Error message */}
+      {upload.isError && (
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-energy-red/10">
+          <AlertTriangle className="w-5 h-5 text-energy-red shrink-0 mt-0.5" />
+          <div className="text-small">
+            <p className="text-foreground font-medium">Upload failed</p>
+            <p className="text-muted-foreground">{upload.error.message}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Data Section
 // ---------------------------------------------------------------------------
 
@@ -992,6 +1140,14 @@ export default function Settings() {
         description="Model, narration mode, temperature, tool calls"
       >
         <LlmSection />
+      </Section>
+
+      <Section
+        icon={HardDrive}
+        title="Dataset"
+        description="Upload a custom CSV dataset or use the UCI default"
+      >
+        <DataUploadSection />
       </Section>
 
       <Section
