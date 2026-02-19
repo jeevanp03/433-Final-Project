@@ -82,6 +82,8 @@ def get_status():
         forecast_peak_kw=round(forecast_peak_kw, 3),
         forecast_peak_hour=peak_hour,
         alert=alert,
+        data_start=str(hourly.index[0]),
+        data_end=str(hourly.index[-1]),
     )
 
 

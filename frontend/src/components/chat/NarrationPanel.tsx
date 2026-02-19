@@ -1,21 +1,18 @@
-import { useEffect } from "react";
+import Markdown from "react-markdown";
 import { Sparkles, RefreshCw, AlertCircle } from "lucide-react";
 import { useNarration } from "@/api/hooks";
 
 interface NarrationPanelProps {
   page: string;
   filters?: Record<string, unknown>;
-  autoLoad?: boolean;
+  visible?: boolean;
 }
 
-export default function NarrationPanel({ page, filters, autoLoad = true }: NarrationPanelProps) {
-  const { data, isLoading, isError, refetch, isFetched } = useNarration({ page, filters });
+export default function NarrationPanel({ page, filters, visible = true }: NarrationPanelProps) {
+  const { data, isLoading, isError, refetch } = useNarration({ page, filters });
 
-  useEffect(() => {
-    if (autoLoad && !isFetched) {
-      refetch();
-    }
-  }, [autoLoad, isFetched, refetch]);
+  // Always fetch in background, but don't render UI unless visible
+  if (!visible) return null;
 
   // Shimmer loading skeleton
   if (isLoading) {
@@ -73,7 +70,9 @@ export default function NarrationPanel({ page, filters, autoLoad = true }: Narra
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
       </div>
-      <p className="text-sm text-foreground leading-relaxed">{narrative}</p>
+      <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground leading-relaxed [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 [&>strong]:font-semibold">
+        <Markdown>{narrative}</Markdown>
+      </div>
     </div>
   );
 }

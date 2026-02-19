@@ -171,7 +171,7 @@ density levels selectable from the top bar:
 | `src/prescriptive/pricing.py` | 3-tier TOU tariff schedule (off-peak / mid-peak / on-peak); hourly cost computation. |
 | `src/prescriptive/optimiser.py` | MILP load-shift engine (PuLP/CBC); minimises weighted peak and cost with incremental infeasibility relaxation. |
 | `server/main.py` | FastAPI app with CORS, mounts all API routers. |
-| `server/routers/` | REST endpoints: status, forecast, history, backtest, simulate, recommend, explain, chat. |
+| `server/routers/` | REST endpoints: status, forecast, history, backtest, simulate, recommend, explain, chat, upload, retrain. |
 | `server/llm/` | Ollama LLM orchestrator with 10 tool functions, SSE streaming, safety guardrails. |
 
 ---
@@ -395,6 +395,7 @@ Key acceptance criteria enforced by tests:
 | `/api/simulate` | POST | Monte Carlo simulation with scenario blocks |
 | `/api/sensitivity` | POST | Tornado-chart sensitivity analysis |
 | `/api/upload` | POST | Upload custom CSV dataset (multipart) |
+| `/api/retrain/status` | GET | Background model retraining progress |
 | `/api/chat` | POST | LLM chat with SSE streaming |
 | `/api/chat/narrate` | POST | Auto-narration for dashboard page |
 | `/api/chat/suggest` | POST | Context-aware suggestion chips |
@@ -431,10 +432,13 @@ Missing values should use `?` (same as the UCI dataset convention).
    fills short gaps, drops long gaps, and computes `Other_consumption`.
 3. The cleaned data replaces `data/processed/hourly_clean.parquet`.
 4. All server caches are cleared, and the dashboard refreshes with the new data.
+5. A **background retraining pipeline** automatically starts, rebuilding features,
+   XGBoost/Ridge models, conformal intervals, and SHAP values on the new data.
+   A progress banner in the Settings page shows the current step and percentage.
 
-**Note:** Uploading replaces the current dataset. Pre-trained models were fitted
-on the UCI data and may not generalize perfectly to a different household's
-consumption patterns.
+The retraining pipeline computes proportional temporal splits (60% train / 25% val
+/ 15% test) based on the uploaded data's actual date range, so it adapts to any
+time span — not just the original UCI boundaries.
 
 ---
 

@@ -319,8 +319,11 @@ def get_deepseek_tool_text() -> str:
         lines.append(f"{i}. {fn['name']} - {fn['description'][:80]}")
         lines.append(f"   Usage: <tool_call>{fn['name']}({param_str})</tool_call>\n")
     lines.append(
-        "IMPORTANT: Output EXACTLY ONE tool_call tag at a time. "
-        "Wait for the result before continuing your response."
+        "CRITICAL: You MUST output a <tool_call> tag to get data. "
+        "Do NOT describe tools or tell the user what to do. Call the tool yourself.\n"
+        "Example — User asks 'What is my current usage?'\n"
+        "You respond: <tool_call>get_current_status()</tool_call>\n"
+        "Then wait for the result before writing your answer."
     )
     return "\n".join(lines)
 

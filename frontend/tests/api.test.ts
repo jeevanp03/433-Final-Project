@@ -74,6 +74,8 @@ describe("Zod schemas", () => {
         forecast_peak_kw: 4.5,
         forecast_peak_hour: "2026-02-19T18:00:00Z",
         alert: true,
+        data_start: "2006-12-16 17:00:00",
+        data_end: "2010-11-26 21:00:00",
       };
       expect(StatusSchema.parse(data)).toEqual(data);
     });

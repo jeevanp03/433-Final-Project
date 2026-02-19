@@ -24,7 +24,8 @@ import {
   Loader2,
 } from "lucide-react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { useUploadDataset } from "@/api/hooks";
+import { useUploadDataset, useRetrainStatus } from "@/api/hooks";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useSettingsStore,
   type Theme,
@@ -810,24 +811,57 @@ function LlmSection() {
 // Dataset Upload Section
 // ---------------------------------------------------------------------------
 
+const RETRAIN_STEP_LABELS: Record<string, string> = {
+  features: "Building features",
+  splits: "Computing data splits",
+  xgboost: "Training XGBoost",
+  ridge: "Training Ridge",
+  conformal: "Computing prediction intervals",
+  shap: "Computing SHAP values",
+  clearing_caches: "Clearing caches",
+  done: "Complete",
+  error: "Failed",
+};
+
 function DataUploadSection() {
   const { dataSource, uploadedFileName, uploadedAt, setDataSource, setUploadedFile } =
     useSettingsStore();
   const upload = useUploadDataset();
   const fileRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [retrainPolling, setRetrainPolling] = useState(false);
+  const retrain = useRetrainStatus(retrainPolling);
+  const qc = useQueryClient();
 
+  // Start polling after upload succeeds
   const handleFile = useCallback(
     (file: File) => {
       upload.mutate(file, {
         onSuccess: (res) => {
           setDataSource("custom");
           setUploadedFile(res.filename, new Date().toISOString());
+          setRetrainPolling(true);
         },
       });
     },
     [upload, setDataSource, setUploadedFile],
   );
+
+  // Stop polling when retrain finishes (done or error)
+  const retrainData = retrain.data;
+  const retrainDone = retrainData && !retrainData.running && retrainData.step === "done";
+  const retrainError = retrainData && !retrainData.running && !!retrainData.error;
+
+  if (retrainPolling && retrainData && !retrainData.running && (retrainData.step === "done" || retrainData.error)) {
+    // Use setTimeout to avoid setState during render
+    setTimeout(() => {
+      setRetrainPolling(false);
+      if (retrainData.step === "done") {
+        // Invalidate all queries so dashboard picks up new models
+        qc.invalidateQueries();
+      }
+    }, 0);
+  }
 
   const onDrop = useCallback(
     (e: DragEvent<HTMLDivElement>) => {
@@ -893,7 +927,7 @@ function DataUploadSection() {
           {upload.isPending ? "Processing..." : "Drop CSV file here or click to browse"}
         </p>
         <p className="text-small text-muted-foreground">
-          Semicolon-delimited CSV with Date, Time, and 7 power columns
+          Semicolon-delimited CSV matching the UCI household power format
         </p>
         <input
           ref={fileRef}
@@ -907,6 +941,41 @@ function DataUploadSection() {
           }}
         />
       </div>
+
+      {/* Expected format */}
+      <details className="group rounded-lg border border-border">
+        <summary className="flex items-center gap-2 px-4 py-3 text-small font-medium text-foreground cursor-pointer select-none">
+          <Info className="w-4 h-4 text-energy-blue shrink-0" />
+          Expected CSV format
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground ml-auto transition-transform group-open:rotate-90" />
+        </summary>
+        <div className="px-4 pb-4 text-small text-muted-foreground space-y-2 border-t border-border pt-3">
+          <p>Semicolon-delimited (<code className="bg-muted px-1 py-0.5 rounded text-xs">;</code>) CSV with these columns:</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-1.5 pr-3 font-medium text-foreground">Column</th>
+                  <th className="text-left py-1.5 pr-3 font-medium text-foreground">Type</th>
+                  <th className="text-left py-1.5 font-medium text-foreground">Example</th>
+                </tr>
+              </thead>
+              <tbody className="font-mono">
+                <tr className="border-b border-border/50"><td className="py-1 pr-3">Date</td><td className="py-1 pr-3">dd/mm/yyyy</td><td className="py-1">16/12/2006</td></tr>
+                <tr className="border-b border-border/50"><td className="py-1 pr-3">Time</td><td className="py-1 pr-3">HH:MM:SS</td><td className="py-1">17:24:00</td></tr>
+                <tr className="border-b border-border/50"><td className="py-1 pr-3">Global_active_power</td><td className="py-1 pr-3">float (kW)</td><td className="py-1">4.216</td></tr>
+                <tr className="border-b border-border/50"><td className="py-1 pr-3">Global_reactive_power</td><td className="py-1 pr-3">float (kW)</td><td className="py-1">0.418</td></tr>
+                <tr className="border-b border-border/50"><td className="py-1 pr-3">Voltage</td><td className="py-1 pr-3">float (V)</td><td className="py-1">234.840</td></tr>
+                <tr className="border-b border-border/50"><td className="py-1 pr-3">Global_intensity</td><td className="py-1 pr-3">float (A)</td><td className="py-1">18.400</td></tr>
+                <tr className="border-b border-border/50"><td className="py-1 pr-3">Sub_metering_1</td><td className="py-1 pr-3">float (Wh)</td><td className="py-1">0.000</td></tr>
+                <tr className="border-b border-border/50"><td className="py-1 pr-3">Sub_metering_2</td><td className="py-1 pr-3">float (Wh)</td><td className="py-1">1.000</td></tr>
+                <tr><td className="py-1 pr-3">Sub_metering_3</td><td className="py-1 pr-3">float (Wh)</td><td className="py-1">17.000</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Missing values should use <code className="bg-muted px-1 py-0.5 rounded text-xs">?</code> as a placeholder. Minimum 168 clean hourly rows (1 week) after processing.</p>
+        </div>
+      </details>
 
       {/* Success message */}
       {upload.isSuccess && (
@@ -929,6 +998,56 @@ function DataUploadSection() {
                 </ul>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Retrain progress banner */}
+      {retrainData && retrainData.running && (
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-energy-blue/10">
+          <Loader2 className="w-5 h-5 text-energy-blue animate-spin shrink-0 mt-0.5" />
+          <div className="flex-1 text-small">
+            <p className="text-foreground font-medium">Retraining models...</p>
+            <p className="text-muted-foreground">
+              {RETRAIN_STEP_LABELS[retrainData.step] ?? retrainData.step} — {retrainData.progress}%
+            </p>
+            <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-energy-blue transition-all duration-500"
+                style={{ width: `${retrainData.progress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Retrain complete */}
+      {retrainDone && (
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-energy-green/10">
+          <CheckCircle2 className="w-5 h-5 text-energy-green shrink-0 mt-0.5" />
+          <div className="text-small">
+            <p className="text-foreground font-medium">Models retrained successfully</p>
+            <p className="text-muted-foreground">
+              All forecasts and predictions now use the new dataset.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Retrain error */}
+      {retrainError && (
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-energy-red/10">
+          <AlertTriangle className="w-5 h-5 text-energy-red shrink-0 mt-0.5" />
+          <div className="flex-1 text-small">
+            <p className="text-foreground font-medium">Retraining failed</p>
+            <p className="text-muted-foreground">{retrainData.error}</p>
+            <button
+              onClick={() => setRetrainPolling(true)}
+              className="mt-2 flex items-center gap-1.5 px-3 py-1.5 text-small font-medium text-energy-blue hover:bg-energy-blue/10 rounded-lg transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Retry upload
+            </button>
           </div>
         </div>
       )}
@@ -1007,6 +1126,12 @@ function DataSection() {
           Import settings
         </button>
       </div>
+      <p className="text-small text-muted-foreground">
+        Export saves all settings (profile, appliances, TOU schedule, preferences)
+        as a <code className="bg-muted px-1 py-0.5 rounded text-xs">.json</code> file.
+        Import accepts the same format — useful for sharing settings between
+        devices or restoring a backup.
+      </p>
       <div className="pt-2 border-t border-border">
         <button
           onClick={() => setShowReset(true)}

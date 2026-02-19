@@ -17,7 +17,7 @@ import { COLOURS, CHART_DEFAULTS, CHART_COLOUR_SEQUENCE } from "@/theme/chartThe
 import LoadingOverlay from "@/components/ui/LoadingOverlay";
 import ErrorFallback from "@/components/ui/ErrorFallback";
 
-import { useHistory, useDecomposition } from "@/api/hooks";
+import { useHistory, useDecomposition, useStatus } from "@/api/hooks";
 import { useAnalyticsStore, type Granularity } from "@/stores/useAnalyticsStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { useUIStore } from "@/stores/useUIStore";
@@ -57,15 +57,22 @@ export default function Analytics() {
   const { dateRange, granularity, subMeterFilter, compareMode, setDateRange, setGranularity, setCompareMode } = useAnalyticsStore();
   const { currency, touSchedule } = useSettingsStore();
   const density = useUIStore((s) => s.density);
+  const { data: statusData } = useStatus();
 
   // Map store SubMeter values to API meter names
   const selectedMeters: ApiMeter[] = useMemo(() => {
     return (subMeterFilter as unknown as ApiMeter[]);
   }, [subMeterFilter]);
 
+  // Use dataset end as reference instead of real "now"
+  const dataEnd = useMemo(() => {
+    if (!statusData?.data_end) return new Date("2010-11-26T00:00:00");
+    try { return new Date(statusData.data_end.replace(" ", "T")); } catch { return new Date("2010-11-26T00:00:00"); }
+  }, [statusData]);
+
   // Date range for API
-  const fromDate = useMemo(() => dateRange ? new Date(dateRange[0]) : subDays(new Date(), 30), [dateRange]);
-  const toDate = useMemo(() => dateRange ? new Date(dateRange[1]) : new Date(), [dateRange]);
+  const fromDate = useMemo(() => dateRange ? new Date(dateRange[0]) : subDays(dataEnd, 30), [dateRange, dataEnd]);
+  const toDate = useMemo(() => dateRange ? new Date(dateRange[1]) : dataEnd, [dateRange, dataEnd]);
   const fromStr = format(fromDate, "yyyy-MM-dd'T'HH:mm:ss");
   const toStr = format(toDate, "yyyy-MM-dd'T'HH:mm:ss");
 

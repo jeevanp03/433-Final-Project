@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
+import type { DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -6,6 +7,7 @@ import {
   Globe,
   Home,
   Bot,
+  Database,
   ChevronRight,
   ChevronLeft,
   ArrowRight,
@@ -16,12 +18,18 @@ import {
   Cloud,
   Link,
   Cpu,
+  FileUp,
+  Loader2,
+  CheckCircle2,
+  AlertTriangle,
+  Info,
 } from "lucide-react";
 import {
   useSettingsStore,
   type Region,
   type Currency,
 } from "@/stores/useSettingsStore";
+import { useUploadDataset } from "@/api/hooks";
 
 // ---------------------------------------------------------------------------
 // Data
@@ -190,6 +198,7 @@ function TextFieldInput({
 const STEPS = [
   { label: "Region", icon: Globe },
   { label: "Household", icon: Home },
+  { label: "Data", icon: Database },
   { label: "Assistant", icon: Bot },
 ];
 
@@ -374,7 +383,158 @@ function StepHousehold() {
 }
 
 // ---------------------------------------------------------------------------
-// Step 3: LLM Assistant
+// Step 3: Dataset Upload
+// ---------------------------------------------------------------------------
+
+function StepDataset() {
+  const { setDataSource, setUploadedFile } = useSettingsStore();
+  const upload = useUploadDataset();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleFile = useCallback(
+    (file: File) => {
+      upload.mutate(file, {
+        onSuccess: (res) => {
+          setDataSource("custom");
+          setUploadedFile(res.filename, new Date().toISOString());
+        },
+      });
+    },
+    [upload, setDataSource, setUploadedFile],
+  );
+
+  const onDrop = useCallback(
+    (e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setDragOver(false);
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    },
+    [handleFile],
+  );
+
+  const onDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOver(true);
+  }, []);
+
+  const onDragLeave = useCallback(() => setDragOver(false), []);
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-page-title text-foreground mb-1">Your Data</h2>
+        <p className="text-body text-muted-foreground">
+          Upload your own household power CSV, or continue with the built-in UCI
+          dataset (Dec 2006 — Nov 2010).
+        </p>
+      </div>
+
+      {/* Drop zone */}
+      <div
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onClick={() => fileRef.current?.click()}
+        className={`relative flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed transition-colors cursor-pointer ${
+          dragOver
+            ? "border-energy-blue bg-energy-blue/5"
+            : "border-border hover:border-energy-blue/30"
+        }`}
+      >
+        {upload.isPending ? (
+          <Loader2 className="w-7 h-7 text-energy-blue animate-spin" />
+        ) : (
+          <FileUp className="w-7 h-7 text-muted-foreground" />
+        )}
+        <p className="text-body text-foreground font-medium">
+          {upload.isPending ? "Processing..." : "Drop CSV here or click to browse"}
+        </p>
+        <p className="text-small text-muted-foreground text-center">
+          Semicolon-delimited with Date, Time, and 7 power columns
+        </p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv,.txt"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFile(file);
+            e.target.value = "";
+          }}
+        />
+      </div>
+
+      {/* Upload result */}
+      {upload.isSuccess && (
+        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-energy-green/10">
+          <CheckCircle2 className="w-4 h-4 text-energy-green shrink-0 mt-0.5" />
+          <div className="text-small">
+            <p className="text-foreground font-medium">Upload successful</p>
+            <p className="text-muted-foreground">
+              {upload.data.rows_clean.toLocaleString()} hourly rows
+              ({upload.data.date_range.from} — {upload.data.date_range.to}).
+              Models will retrain in the background.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {upload.isError && (
+        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-energy-red/10">
+          <AlertTriangle className="w-4 h-4 text-energy-red shrink-0 mt-0.5" />
+          <div className="text-small">
+            <p className="text-foreground font-medium">Upload failed</p>
+            <p className="text-muted-foreground">{upload.error.message}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Format reference */}
+      <details className="group rounded-xl border border-border">
+        <summary className="flex items-center gap-2 px-3.5 py-2.5 text-small font-medium text-foreground cursor-pointer select-none">
+          <Info className="w-3.5 h-3.5 text-energy-blue shrink-0" />
+          Expected CSV format
+          <ChevronRight className="w-3 h-3 text-muted-foreground ml-auto transition-transform group-open:rotate-90" />
+        </summary>
+        <div className="px-3.5 pb-3 text-small text-muted-foreground border-t border-border pt-2.5">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-1 pr-2 font-medium text-foreground">Column</th>
+                  <th className="text-left py-1 pr-2 font-medium text-foreground">Type</th>
+                  <th className="text-left py-1 font-medium text-foreground">Example</th>
+                </tr>
+              </thead>
+              <tbody className="font-mono">
+                <tr className="border-b border-border/50"><td className="py-0.5 pr-2">Date</td><td className="py-0.5 pr-2">dd/mm/yyyy</td><td className="py-0.5">16/12/2006</td></tr>
+                <tr className="border-b border-border/50"><td className="py-0.5 pr-2">Time</td><td className="py-0.5 pr-2">HH:MM:SS</td><td className="py-0.5">17:24:00</td></tr>
+                <tr className="border-b border-border/50"><td className="py-0.5 pr-2">Global_active_power</td><td className="py-0.5 pr-2">kW</td><td className="py-0.5">4.216</td></tr>
+                <tr className="border-b border-border/50"><td className="py-0.5 pr-2">Global_reactive_power</td><td className="py-0.5 pr-2">kW</td><td className="py-0.5">0.418</td></tr>
+                <tr className="border-b border-border/50"><td className="py-0.5 pr-2">Voltage</td><td className="py-0.5 pr-2">V</td><td className="py-0.5">234.840</td></tr>
+                <tr className="border-b border-border/50"><td className="py-0.5 pr-2">Global_intensity</td><td className="py-0.5 pr-2">A</td><td className="py-0.5">18.400</td></tr>
+                <tr className="border-b border-border/50"><td className="py-0.5 pr-2">Sub_metering_1</td><td className="py-0.5 pr-2">Wh</td><td className="py-0.5">0.000</td></tr>
+                <tr className="border-b border-border/50"><td className="py-0.5 pr-2">Sub_metering_2</td><td className="py-0.5 pr-2">Wh</td><td className="py-0.5">1.000</td></tr>
+                <tr><td className="py-0.5 pr-2">Sub_metering_3</td><td className="py-0.5 pr-2">Wh</td><td className="py-0.5">17.000</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2">Use <code className="bg-muted px-1 py-0.5 rounded text-xs">?</code> for missing values. Min 168 hourly rows (1 week).</p>
+        </div>
+      </details>
+
+      <p className="text-small text-muted-foreground text-center">
+        No file? No problem — the default UCI dataset works out of the box.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Step 4: LLM Assistant
 // ---------------------------------------------------------------------------
 
 function StepAssistant() {
@@ -456,8 +616,10 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const completeOnboarding = useSettingsStore((s) => s.completeOnboarding);
 
+  const lastStep = STEPS.length - 1;
+
   const next = () => {
-    if (step < 2) {
+    if (step < lastStep) {
       setDirection(1);
       setStep(step + 1);
     }
@@ -480,7 +642,7 @@ export default function Onboarding() {
     navigate("/");
   };
 
-  const steps = [<StepRegion />, <StepHousehold />, <StepAssistant />];
+  const steps = [<StepRegion />, <StepHousehold />, <StepDataset />, <StepAssistant />];
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
@@ -562,7 +724,7 @@ export default function Onboarding() {
             Back
           </button>
 
-          {step < 2 ? (
+          {step < lastStep ? (
             <button
               onClick={next}
               className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-energy-blue text-white text-small font-medium hover:bg-energy-blue/90 transition-colors cursor-pointer"

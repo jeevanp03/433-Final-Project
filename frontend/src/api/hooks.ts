@@ -14,6 +14,7 @@ import type {
   MetricsResponse,
   RecommendRequest,
   RecommendResponse,
+  RetrainStatus,
   SensitivityRequest,
   SensitivityResponse,
   SimulateRequest,
@@ -256,6 +257,19 @@ export function useUploadDataset() {
 }
 
 // ---------------------------------------------------------------------------
+// GET /api/retrain/status — poll every 2s while active
+// ---------------------------------------------------------------------------
+
+export function useRetrainStatus(enabled: boolean) {
+  return useQuery<RetrainStatus>({
+    queryKey: ["retrain-status"],
+    queryFn: async () => (await api.get<RetrainStatus>("/retrain/status")).data,
+    refetchInterval: enabled ? 2000 : false,
+    enabled,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/chat (SSE streaming) — handled outside React Query
 // ---------------------------------------------------------------------------
 
@@ -305,13 +319,13 @@ export async function* streamChat(
 // POST /api/chat/narrate — 2min cache
 // ---------------------------------------------------------------------------
 
-export function useNarration(context: { page: string; filters?: Record<string, unknown> }) {
+export function useNarration(context: { page: string; filters?: Record<string, unknown> }, enabled = true) {
   return useQuery<{ narrative: string }>({
     queryKey: ["narration", context],
     queryFn: async () =>
       (await api.post<{ narrative: string }>("/chat/narrate", context)).data,
-    staleTime: 2 * 60_000,
-    enabled: false, // manually triggered
+    staleTime: 5 * 60_000,
+    enabled,
   });
 }
 

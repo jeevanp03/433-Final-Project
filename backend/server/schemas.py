@@ -16,6 +16,8 @@ class StatusResponse(BaseModel):
     forecast_peak_kw: float
     forecast_peak_hour: str
     alert: bool
+    data_start: str
+    data_end: str
 
 
 # ---------------------------------------------------------------------------
@@ -210,3 +212,16 @@ class UploadResponse(BaseModel):
     date_range: dict[str, str]
     columns: list[str]
     warnings: list[str]
+
+
+# ---------------------------------------------------------------------------
+# Retrain
+# ---------------------------------------------------------------------------
+
+class RetrainStatusResponse(BaseModel):
+    running: bool
+    step: str
+    progress: int
+    error: str | None
+    started_at: str | None
+    finished_at: str | None

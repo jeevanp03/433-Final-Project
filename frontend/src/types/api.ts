@@ -11,6 +11,8 @@ export const StatusSchema = z.object({
   forecast_peak_kw: z.number(),
   forecast_peak_hour: z.string(),
   alert: z.boolean(),
+  data_start: z.string(),
+  data_end: z.string(),
 });
 
 export type Status = z.infer<typeof StatusSchema>;
@@ -278,6 +280,21 @@ export const UploadResponseSchema = z.object({
 });
 
 export type UploadResponse = z.infer<typeof UploadResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Retrain
+// ---------------------------------------------------------------------------
+
+export const RetrainStatusSchema = z.object({
+  running: z.boolean(),
+  step: z.string(),
+  progress: z.number(),
+  error: z.string().nullable(),
+  started_at: z.string().nullable(),
+  finished_at: z.string().nullable(),
+});
+
+export type RetrainStatus = z.infer<typeof RetrainStatusSchema>;
 
 // ---------------------------------------------------------------------------
 // Chat (SSE)

@@ -6,7 +6,7 @@ import io
 from pathlib import Path
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
 
 from server.schemas import UploadResponse
 from src.ingestion.clean import clean_and_resample, save_parquet
@@ -26,7 +26,7 @@ REQUIRED_COLUMNS = [
 
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload_dataset(file: UploadFile):
+async def upload_dataset(file: UploadFile, background_tasks: BackgroundTasks):
     """Upload a semicolon-delimited CSV to replace the active dataset.
 
     The file is parsed, validated, cleaned (hourly resampling + gap filling),
@@ -132,6 +132,11 @@ async def upload_dataset(file: UploadFile):
         get_ridge_model,
     ]:
         fn.cache_clear()
+
+    # --- Trigger background retrain ---------------------------------------
+    from server.routers.retrain import run_retrain_pipeline
+
+    background_tasks.add_task(run_retrain_pipeline, clean_df)
 
     # --- Build response ---------------------------------------------------
     date_range = {

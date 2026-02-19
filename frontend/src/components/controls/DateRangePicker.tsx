@@ -19,7 +19,7 @@ const presets = [
 
 export default function DateRangePicker({ from, to, onChange, minDate, maxDate }: DateRangePickerProps) {
   const [open, setOpen] = useState(false);
-  const [viewMonth, setViewMonth] = useState(from ?? new Date());
+  const [viewMonth, setViewMonth] = useState(from ?? maxDate ?? new Date());
   const [picking, setPicking] = useState<"from" | "to">("from");
   const ref = useRef<HTMLDivElement>(null);
 
@@ -53,10 +53,10 @@ export default function DateRangePicker({ from, to, onChange, minDate, maxDate }
     }
   }
 
-  function applyPreset(days: number) {
-    const end = maxDate ?? new Date();
-    const start = new Date(end.getTime() - days * 86400000);
-    onChange(start, end);
+  function applyPreset(numDays: number) {
+    const end = to ?? maxDate ?? new Date();
+    const start = new Date(end.getTime() - numDays * 86400000);
+    onChange(minDate && start < minDate ? minDate : start, end);
     setOpen(false);
   }
 

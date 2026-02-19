@@ -12,7 +12,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from server.routers import chat, forecast, recommend, simulate, upload
+from server.routers import chat, forecast, recommend, retrain, simulate, upload
 
 app = FastAPI(
     title="Energy IDSS API",
@@ -38,6 +38,7 @@ app.include_router(recommend.router, prefix="/api")
 app.include_router(simulate.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
+app.include_router(retrain.router, prefix="/api")
 
 
 @app.get("/api/health")
